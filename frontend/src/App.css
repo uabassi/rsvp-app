@@ -1,0 +1,245 @@
+.App {
+  text-align: center;
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.App-header {
+  margin-bottom: 40px;
+}
+
+.form-container {
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+textarea {
+  min-height: 100px;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+}
+
+label {
+  display: block;
+  text-align: left;
+  margin-bottom: 5px;
+}
+
+.event-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.event-section h3 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.landing-page {
+    min-height: 100vh;
+    width: 100vw;
+    background-color: #FDFBF7;
+    color: #2C2C2C;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    margin: 0;
+    overflow-y: auto;
+}
+
+.landing-header {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    color: #f4ece6;
+    z-index: 10;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.landing-header h1 {
+    margin: 0;
+    font-weight: 300;
+}
+
+.content-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    padding-top: 17rem;
+    z-index: 2;
+    text-align: center;
+}
+
+.rsvp-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(4rem, 15vw, 8rem);
+    font-weight: 300;
+    margin: 0;
+    letter-spacing: 0.1em;
+    color: #f4ece6;
+}
+
+.rsvp-subtitle {
+    font-size: 0.875rem;
+    letter-spacing: 0.2em;
+    margin: 2rem 0;
+    font-weight: 300;
+    font-family: 'Montserrat', serif;
+    color: #f4ece6;
+}
+
+.rsvp-form {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.rsvp-input {
+    width: 100%;
+    padding: 0.75rem;
+    background: transparent;
+    border: 1px solid #f4ece6;
+    color: #f4ece6;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.875rem;
+    border-radius: 0.25rem;
+}
+
+.rsvp-input::placeholder {
+    color: rgba(244, 236, 230, 0.6);
+}
+
+.reply-button {
+    padding: 0.75rem 2rem;
+    border: 1px solid #f4ece6;
+    background: transparent;
+    color: #f4ece6;
+    font-size: 0.875rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Montserrat', serif;
+}
+
+.reply-button:hover {
+    background: #f4ece6;
+    color: #000000;
+}
+
+.image-section {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.engagement-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    filter: grayscale(10%) brightness(0.6);
+}
+
+.error-message {
+    color: #ff9999;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.875rem;
+    letter-spacing: 0.1em;
+}
+
+@media (max-width: 640px) {
+    .landing-header {
+        width: 100%;
+        text-align: center;
+        left: 0;
+        transform: none;
+    }
+
+    .content-section {
+        padding: 1rem;
+    }
+
+    .rsvp-title {
+        font-size: clamp(3rem, 12vw, 4rem);
+    }
+
+    .image-section {
+        height: 100vh;
+    }
+}
+
+.thank-you-container {
+    text-align: center;
+    z-index: 2;
+}
+
+.thank-you-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(3rem, 10vw, 5rem);
+    font-weight: 300;
+    margin: 0;
+    letter-spacing: 0.1em;
+    color: #f4ece6;
+}
+
+.thank-you-text {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 0.2em;
+    margin: 2rem 0;
+    font-weight: 300;
+    color: #f4ece6;
+} 

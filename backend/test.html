@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RSVP Test</title>
+</head>
+<body>
+    <h2>RSVP Test Interface</h2>
+    
+    <div id="login-section">
+        <h3>Login with RSVP Code</h3>
+        <input type="text" id="rsvpCode" placeholder="Enter RSVP code">
+        <button onclick="login()">Submit</button>
+    </div>
+
+    <div id="rsvp-section" style="display: none;">
+        <h3>Submit RSVP</h3>
+        <p id="guestName"></p>
+        <select id="attending">
+            <option value="1">Attending</option>
+            <option value="0">Not Attending</option>
+        </select>
+        <br><br>
+        <textarea id="comment" placeholder="Add a comment"></textarea>
+        <br><br>
+        <button onclick="submitRsvp()">Submit RSVP</button>
+    </div>
+
+    <script>
+        let currentGuestId = null;
+
+        async function login() {
+            const rsvpCode = document.getElementById('rsvpCode').value;
+            try {
+                const response = await fetch('http://localhost:3001/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ rsvpCode }),
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('rsvp-section').style.display = 'block';
+                    document.getElementById('guestName').textContent = `Guest: ${data.name}`;
+                    currentGuestId = data.guest_id;
+                } else {
+                    alert(data.error);
+                }
+            } catch (error) {
+                alert('Error connecting to server');
+            }
+        }
+
+        async function submitRsvp() {
+            const attending = document.getElementById('attending').value === '1';
+            const comment = document.getElementById('comment').value;
+
+            try {
+                const response = await fetch('http://localhost:3001/api/rsvp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        guestId: currentGuestId,
+                        attending,
+                        comment
+                    }),
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('RSVP submitted successfully!');
+                } else {
+                    alert(data.error);
+                }
+            } catch (error) {
+                alert('Error submitting RSVP');
+            }
+        }
+    </script>
+</body>
+</html> 
