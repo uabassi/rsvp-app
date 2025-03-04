@@ -149,6 +149,25 @@ app.post('/api/upload-guests', upload.single('file'), async (req, res) => {
     }
 });
 
+// Add this new endpoint to get event totals
+app.get('/api/event-totals', async (req, res) => {
+    try {
+        db.all(`
+            SELECT * FROM event_totals
+            ORDER BY event_date
+        `, [], (err, rows) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.json(rows);
+        });
+    } catch (err) {
+        console.error('Error fetching event totals:', err);
+        res.status(500).json({ error: 'Error fetching event totals' });
+    }
+});
+
 // Start the server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);

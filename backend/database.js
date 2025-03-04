@@ -22,13 +22,15 @@ function initializeDatabase() {
         db.run(`DROP TABLE IF EXISTS events`);
         db.run(`DROP TABLE IF EXISTS guests`);
         db.run(`DROP TABLE IF EXISTS families`);
+        db.run(`DROP VIEW IF EXISTS event_totals`);
 
-        // Modified Families table - added has_children field
+        // Modified Families table - added has_children and has_spouse fields
         db.run(`
             CREATE TABLE IF NOT EXISTS families (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 rsvp_code TEXT UNIQUE NOT NULL,
-                has_children BOOLEAN DEFAULT 0
+                has_children BOOLEAN DEFAULT 0,
+                has_spouse BOOLEAN DEFAULT 0
             )
         `);
 
@@ -105,6 +107,80 @@ function initializeDatabase() {
             ORDER BY r.id
         `);
 
+        //permanent view for event totals that can be seen in DB Browser
+        db.run(`
+            CREATE VIEW event_totals AS
+            SELECT 
+                e.id as event_id,
+                e.name as event_name,
+                e.date as event_date,
+                (
+                    SELECT COUNT(DISTINCT g2.id) + 
+                    SUM(CASE WHEN f2.has_spouse = 1 THEN 1 ELSE 0 END)
+                    FROM guests g2
+                    JOIN families f2 ON g2.family_id = f2.id
+                    JOIN guest_events ge2 ON g2.id = ge2.guest_id
+                    LEFT JOIN rsvp_responses r2 ON g2.id = r2.guest_id AND e.id = r2.event_id
+                    WHERE ge2.event_id = e.id AND r2.attending = 1
+                ) as total_adults,
+                (
+                    SELECT COALESCE(SUM(
+                        CASE 
+                            WHEN r3.children_attending = 1 THEN COALESCE(r3.number_of_children, 0)
+                            ELSE 0 
+                        END
+                    ), 0)
+                    FROM rsvp_responses r3
+                    WHERE r3.event_id = e.id AND r3.attending = 1
+                ) as total_children,
+                (
+                    SELECT 
+                        (COUNT(DISTINCT g2.id) + 
+                        SUM(CASE WHEN f2.has_spouse = 1 THEN 1 ELSE 0 END)) +
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN r2.children_attending = 1 THEN COALESCE(r2.number_of_children, 0)
+                                ELSE 0 
+                            END
+                        ), 0)
+                    FROM guests g2
+                    JOIN families f2 ON g2.family_id = f2.id
+                    JOIN guest_events ge2 ON g2.id = ge2.guest_id
+                    LEFT JOIN rsvp_responses r2 ON g2.id = r2.guest_id AND e.id = r2.event_id
+                    WHERE ge2.event_id = e.id AND r2.attending = 1
+                ) as total_attendees
+            FROM events e
+        `);
+
+        //view for invited guests per event
+        db.run(`
+            CREATE VIEW IF NOT EXISTS event_guest_list AS
+            SELECT 
+                e.name as event_name,
+                g.name as guest_name,
+                f.rsvp_code,
+                f.has_spouse,
+                f.has_children,
+                CASE 
+                    WHEN r.attending = 1 THEN 'Yes'
+                    WHEN r.attending = 0 THEN 'No'
+                    ELSE 'Pending'
+                END as attending_status,
+                CASE 
+                    WHEN f.has_spouse = 1 THEN 2
+                    ELSE 1
+                END as adult_count,
+                COALESCE(r.number_of_children, 0) as children_count,
+                COALESCE(r.children_comments, '') as children_details,
+                COALESCE(r.comment, '') as comments
+            FROM events e
+            JOIN guest_events ge ON e.id = ge.event_id
+            JOIN guests g ON ge.guest_id = g.id
+            JOIN families f ON g.family_id = f.id
+            LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
+            ORDER BY e.date, g.name
+        `);
+
         // Insert test data with a family that has children
         // db.run(`INSERT OR IGNORE INTO families (id, rsvp_code, has_children) VALUES (1, 'TEST123', 1)`);
         // db.run(`INSERT OR IGNORE INTO guests (id, name, family_id) VALUES (1, 'John Doe', 1)`);
@@ -155,7 +231,7 @@ function getFormattedRsvpResponses() {
     });
 }
 
-// Add this function to import CSV data
+//function to import CSV data
 function importGuestsFromCSV(filePath) {
     return new Promise((resolve, reject) => {
         const results = [];
@@ -166,16 +242,19 @@ function importGuestsFromCSV(filePath) {
                 results.push(data);
             })
             .on('end', () => {
-                // Process each row sequentially using async/await
                 const processRows = async () => {
                     for (const row of results) {
                         // First, insert or get family
                         const family = await new Promise((resolve, reject) => {
                             db.get(
-                                `INSERT OR REPLACE INTO families (rsvp_code, has_children)
-                                 VALUES (?, ?)
+                                `INSERT OR REPLACE INTO families (rsvp_code, has_children, has_spouse)
+                                 VALUES (?, ?, ?)
                                  RETURNING id`,
-                                [row.rsvp_code, row.has_children === '1' ? 1 : 0],
+                                [
+                                    row.rsvp_code, 
+                                    row.has_children === '1' ? 1 : 0,
+                                    row.has_spouse === '1' ? 1 : 0
+                                ],
                                 (err, result) => {
                                     if (err) reject(err);
                                     else resolve(result);

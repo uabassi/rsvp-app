@@ -76,7 +76,7 @@ function RsvpForm({ guestData }) {
             {guestData.has_children === 1 && responses[index].attending && (
               <>
                 <div className="form-group">
-                  <label className="form-label">Will family be attending?</label>
+                  <label className="form-label">Will children be attending?</label>
                   <select
                     className="form-select"
                     value={responses[index].children_attending ? "1" : "0"}
