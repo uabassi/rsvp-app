@@ -21,11 +21,12 @@ function initializeDatabase() {
         db.run(`DROP TABLE IF EXISTS guests`);
         db.run(`DROP TABLE IF EXISTS families`);
 
-        // Create Families table - stores RSVP codes for each family unit
+        // Modified Families table - added has_children field
         db.run(`
             CREATE TABLE IF NOT EXISTS families (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                rsvp_code TEXT UNIQUE NOT NULL
+                rsvp_code TEXT UNIQUE NOT NULL,
+                has_children BOOLEAN DEFAULT 0
             )
         `);
 
@@ -60,20 +61,23 @@ function initializeDatabase() {
             )
         `);
 
-        // Modified RSVP responses table to include event_id
+        // Modified RSVP responses table to include children info
         db.run(`
             CREATE TABLE IF NOT EXISTS rsvp_responses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 guest_id INTEGER,
                 event_id INTEGER,
                 attending BOOLEAN,
+                children_attending BOOLEAN,
+                number_of_children INTEGER,
+                children_comments TEXT,
                 comment TEXT,
                 FOREIGN KEY (guest_id) REFERENCES guests (id),
                 FOREIGN KEY (event_id) REFERENCES events (id)
             )
         `);
 
-        // Create a view for formatted RSVP responses
+        // Modified view for formatted RSVP responses
         db.run(`
             CREATE VIEW formatted_rsvp_responses AS
             SELECT 
@@ -85,6 +89,13 @@ function initializeDatabase() {
                     WHEN r.attending = 0 THEN 'No'
                     ELSE 'Unknown'
                 END as attending,
+                CASE 
+                    WHEN r.children_attending = 1 THEN 'Yes'
+                    WHEN r.children_attending = 0 THEN 'No'
+                    ELSE 'N/A'
+                END as children_attending,
+                COALESCE(r.number_of_children, 0) as number_of_children,
+                COALESCE(r.children_comments, '') as children_comments,
                 COALESCE(r.comment, '') as comment
             FROM rsvp_responses r
             JOIN guests g ON r.guest_id = g.id
@@ -92,8 +103,8 @@ function initializeDatabase() {
             ORDER BY r.id
         `);
 
-        // Insert test data
-        db.run(`INSERT OR IGNORE INTO families (id, rsvp_code) VALUES (1, 'TEST123')`);
+        // Insert test data with a family that has children
+        db.run(`INSERT OR IGNORE INTO families (id, rsvp_code, has_children) VALUES (1, 'TEST123', 1)`);
         db.run(`INSERT OR IGNORE INTO guests (id, name, family_id) VALUES (1, 'John Doe', 1)`);
         
         // Insert events
@@ -120,7 +131,14 @@ function getFormattedRsvpResponses() {
                     WHEN r.attending = 0 THEN 'No'
                     ELSE 'Unknown'
                 END as attending,
-                r.comment
+                CASE 
+                    WHEN r.children_attending = 1 THEN 'Yes'
+                    WHEN r.children_attending = 0 THEN 'No'
+                    ELSE 'N/A'
+                END as children_attending,
+                COALESCE(r.number_of_children, 0) as number_of_children,
+                COALESCE(r.children_comments, '') as children_comments,
+                COALESCE(r.comment, '') as comment
             FROM rsvp_responses r
             JOIN guests g ON r.guest_id = g.id
             JOIN events e ON r.event_id = e.id

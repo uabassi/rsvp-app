@@ -9,7 +9,10 @@ function RsvpForm({ guestData }) {
     guestData.events.map(event => ({
       event_id: event.id,
       attending: true,
-      comment: ''
+      comment: '',
+      children_attending: false,
+      number_of_children: 0,
+      children_comments: ''
     }))
   );
   const [submitted, setSubmitted] = useState(false);
@@ -68,6 +71,49 @@ function RsvpForm({ guestData }) {
                 <option value="0">No, I cannot attend</option>
               </select>
             </div>
+
+            {/* Only show children options if family has children */}
+            {guestData.has_children && responses[index].attending && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Will family be attending?</label>
+                  <select
+                    className="form-select"
+                    value={responses[index].children_attending ? "1" : "0"}
+                    onChange={(e) => handleResponseChange(index, 'children_attending', e.target.value === "1")}
+                  >
+                    <option value="1">Yes, children will attend</option>
+                    <option value="0">No, children will not attend</option>
+                  </select>
+                </div>
+
+                {responses[index].children_attending && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Number of Family attending:</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        min="1"
+                        max="10"
+                        value={responses[index].number_of_children}
+                        onChange={(e) => handleResponseChange(index, 'number_of_children', parseInt(e.target.value))}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Children's details/comments:</label>
+                      <textarea
+                        className="form-textarea"
+                        value={responses[index].children_comments}
+                        onChange={(e) => handleResponseChange(index, 'children_comments', e.target.value)}
+                        placeholder="Please add any details about the children (ages, names, etc.)"
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
             <div className="form-group">
               <label className="form-label">Comments for {event.name}:</label>
               <textarea

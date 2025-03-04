@@ -13,7 +13,7 @@ app.use(express.json());
 // Initialize database tables and test data
 initializeDatabase();
 
-// Modified login endpoint to include event information
+// Modified login endpoint to include family information
 app.post('/api/login', (req, res) => {
     const { rsvpCode } = req.body;
     
@@ -21,6 +21,7 @@ app.post('/api/login', (req, res) => {
         `SELECT 
             f.id as family_id, 
             f.rsvp_code, 
+            f.has_children,
             g.id as guest_id, 
             g.name,
             json_group_array(
@@ -53,11 +54,10 @@ app.post('/api/login', (req, res) => {
     );
 });
 
-// Modified RSVP endpoint to handle multiple events
+// Modified RSVP endpoint to handle children information
 app.post('/api/rsvp', (req, res) => {
     const { guestId, responses } = req.body;
     
-    // First delete any existing responses for this guest
     db.run('DELETE FROM rsvp_responses WHERE guest_id = ?', [guestId], (deleteErr) => {
         if (deleteErr) {
             console.error('Error deleting existing responses:', deleteErr);
@@ -65,14 +65,35 @@ app.post('/api/rsvp', (req, res) => {
             return;
         }
 
-        // Use Promise.all to handle all insertions
         Promise.all(
-            responses.map(({ event_id, attending, comment }) => {
+            responses.map(({ 
+                event_id, 
+                attending, 
+                comment,
+                children_attending,
+                number_of_children,
+                children_comments 
+            }) => {
                 return new Promise((resolve, reject) => {
                     db.run(
-                        `INSERT INTO rsvp_responses (guest_id, event_id, attending, comment)
-                         VALUES (?, ?, ?, ?)`,
-                        [guestId, event_id, attending, comment],
+                        `INSERT INTO rsvp_responses (
+                            guest_id, 
+                            event_id, 
+                            attending, 
+                            children_attending,
+                            number_of_children,
+                            children_comments,
+                            comment
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            guestId, 
+                            event_id, 
+                            attending, 
+                            children_attending,
+                            number_of_children,
+                            children_comments,
+                            comment
+                        ],
                         function(err) {
                             if (err) {
                                 console.error('Error inserting response:', err);
