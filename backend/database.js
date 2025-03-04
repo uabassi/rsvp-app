@@ -59,6 +59,7 @@ function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS guest_events (
                 guest_id INTEGER,
                 event_id INTEGER,
+                children_invited BOOLEAN DEFAULT 0,
                 FOREIGN KEY (guest_id) REFERENCES guests (id),
                 FOREIGN KEY (event_id) REFERENCES events (id),
                 PRIMARY KEY (guest_id, event_id)
@@ -274,14 +275,19 @@ function importGuestsFromCSV(filePath) {
                                         // After guest is inserted, handle their events
                                         const guestId = this.lastID;
                                         const events = row.invited_events.split(',');
+                                        const children_events = (row.children_invited_events || '').split(',');
                                         
                                         // Insert event associations
                                         const eventPromises = events.map(eventName => {
                                             return new Promise((resolve, reject) => {
                                                 db.run(
-                                                    `INSERT OR IGNORE INTO guest_events (guest_id, event_id)
-                                                     SELECT ?, id FROM events WHERE name = ?`,
-                                                    [guestId, eventName.trim()],
+                                                    `INSERT OR IGNORE INTO guest_events (guest_id, event_id, children_invited)
+                                                     SELECT ?, id, ? FROM events WHERE name = ?`,
+                                                    [
+                                                        guestId, 
+                                                        children_events.includes(eventName.trim()) ? 1 : 0,
+                                                        eventName.trim()
+                                                    ],
                                                     (err) => {
                                                         if (err) reject(err);
                                                         else resolve();

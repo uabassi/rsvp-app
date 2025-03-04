@@ -25,13 +25,15 @@ app.post('/api/login', (req, res) => {
             f.id as family_id, 
             f.rsvp_code, 
             f.has_children,
+            f.has_spouse,
             g.id as guest_id, 
             g.name,
             json_group_array(
                 json_object(
                     'id', e.id,
                     'name', e.name,
-                    'date', e.date
+                    'date', e.date,
+                    'children_invited', ge.children_invited
                 )
             ) as events
          FROM families f 
