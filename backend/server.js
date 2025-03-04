@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const { db, initializeDatabase, getFormattedRsvpResponses } = require('./database');
+const { db, initializeDatabase, getFormattedRsvpResponses, importGuestsFromCSV } = require('./database');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
+const fs = require('fs');
 
 const app = express();
 const port = 3001;
@@ -124,6 +127,25 @@ app.get('/api/rsvp-responses', async (req, res) => {
     } catch (err) {
         console.error('Error fetching RSVP responses:', err);
         res.status(500).json({ error: 'Error fetching RSVP responses' });
+    }
+});
+
+// Add this endpoint for CSV upload
+app.post('/api/upload-guests', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        await importGuestsFromCSV(req.file.path);
+        
+        // Clean up uploaded file
+        fs.unlinkSync(req.file.path);
+        
+        res.json({ message: 'Guest list imported successfully' });
+    } catch (err) {
+        console.error('Error importing guests:', err);
+        res.status(500).json({ error: 'Error importing guest list' });
     }
 });
 

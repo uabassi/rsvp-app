@@ -72,8 +72,8 @@ function RsvpForm({ guestData }) {
               </select>
             </div>
 
-            {/* Only show children options if family has children */}
-            {guestData.has_children && responses[index].attending && (
+            {/* Only show children options if family has children and is attending */}
+            {guestData.has_children === 1 && responses[index].attending && (
               <>
                 <div className="form-group">
                   <label className="form-label">Will family be attending?</label>

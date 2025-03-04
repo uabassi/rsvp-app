@@ -1,4 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
+const csv = require('csv-parse');
 
 // Create a new database instance
 // This will create a new file called rsvp.db if it doesn't exist
@@ -104,8 +106,8 @@ function initializeDatabase() {
         `);
 
         // Insert test data with a family that has children
-        db.run(`INSERT OR IGNORE INTO families (id, rsvp_code, has_children) VALUES (1, 'TEST123', 1)`);
-        db.run(`INSERT OR IGNORE INTO guests (id, name, family_id) VALUES (1, 'John Doe', 1)`);
+        // db.run(`INSERT OR IGNORE INTO families (id, rsvp_code, has_children) VALUES (1, 'TEST123', 1)`);
+        // db.run(`INSERT OR IGNORE INTO guests (id, name, family_id) VALUES (1, 'John Doe', 1)`);
         
         // Insert events
         db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (1, 'Mehndi', '2024-06-01')`);
@@ -113,8 +115,8 @@ function initializeDatabase() {
         db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (3, 'Valima', '2024-06-03')`);
 
         // Assign John Doe to Baraat and Valima
-        db.run(`INSERT OR IGNORE INTO guest_events (guest_id, event_id) VALUES (1, 2)`); // Baraat
-        db.run(`INSERT OR IGNORE INTO guest_events (guest_id, event_id) VALUES (1, 3)`); // Valima
+        // db.run(`INSERT OR IGNORE INTO guest_events (guest_id, event_id) VALUES (1, 2)`); // Baraat
+        // db.run(`INSERT OR IGNORE INTO guest_events (guest_id, event_id) VALUES (1, 3)`); // Valima
     });
 }
 
@@ -153,9 +155,84 @@ function getFormattedRsvpResponses() {
     });
 }
 
+// Add this function to import CSV data
+function importGuestsFromCSV(filePath) {
+    return new Promise((resolve, reject) => {
+        const results = [];
+        
+        fs.createReadStream(filePath)
+            .pipe(csv.parse({ columns: true, trim: true }))
+            .on('data', (data) => {
+                results.push(data);
+            })
+            .on('end', () => {
+                // Process each row sequentially using async/await
+                const processRows = async () => {
+                    for (const row of results) {
+                        // First, insert or get family
+                        const family = await new Promise((resolve, reject) => {
+                            db.get(
+                                `INSERT OR REPLACE INTO families (rsvp_code, has_children)
+                                 VALUES (?, ?)
+                                 RETURNING id`,
+                                [row.rsvp_code, row.has_children === '1' ? 1 : 0],
+                                (err, result) => {
+                                    if (err) reject(err);
+                                    else resolve(result);
+                                }
+                            );
+                        });
+
+                        // Then, insert guest with the correct family_id
+                        await new Promise((resolve, reject) => {
+                            db.run(
+                                `INSERT OR REPLACE INTO guests (name, family_id)
+                                 VALUES (?, ?)`,
+                                [row.name, family.id],
+                                function(err) {
+                                    if (err) reject(err);
+                                    else {
+                                        // After guest is inserted, handle their events
+                                        const guestId = this.lastID;
+                                        const events = row.invited_events.split(',');
+                                        
+                                        // Insert event associations
+                                        const eventPromises = events.map(eventName => {
+                                            return new Promise((resolve, reject) => {
+                                                db.run(
+                                                    `INSERT OR IGNORE INTO guest_events (guest_id, event_id)
+                                                     SELECT ?, id FROM events WHERE name = ?`,
+                                                    [guestId, eventName.trim()],
+                                                    (err) => {
+                                                        if (err) reject(err);
+                                                        else resolve();
+                                                    }
+                                                );
+                                            });
+                                        });
+
+                                        Promise.all(eventPromises)
+                                            .then(() => resolve())
+                                            .catch(reject);
+                                    }
+                                }
+                            );
+                        });
+                    }
+                };
+
+                processRows()
+                    .then(() => resolve())
+                    .catch(reject);
+            })
+            .on('error', reject);
+    });
+}
+
 // Export the database connection, initialization function, and the new function
 module.exports = { 
     db, 
     initializeDatabase,
-    getFormattedRsvpResponses 
+    getFormattedRsvpResponses,
+    importGuestsFromCSV
 }; 
