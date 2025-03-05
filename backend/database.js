@@ -187,9 +187,10 @@ function initializeDatabase() {
         // db.run(`INSERT OR IGNORE INTO guests (id, name, family_id) VALUES (1, 'John Doe', 1)`);
         
         // Insert events
-        db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (1, 'Mehndi', '2024-06-01')`);
-        db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (2, 'Baraat', '2024-06-02')`);
-        db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (3, 'Valima', '2024-06-03')`);
+        db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (1, 'Nikkah', '06-13-2025')`);
+        db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (2, 'Mehndi', '06-19-2025')`);
+        db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (3, 'Baraat', '06-21-2025')`);
+        db.run(`INSERT OR IGNORE INTO events (id, name, date) VALUES (4, 'Valima', '06-22-2025')`);
 
         // Assign John Doe to Baraat and Valima
         // db.run(`INSERT OR IGNORE INTO guest_events (guest_id, event_id) VALUES (1, 2)`); // Baraat

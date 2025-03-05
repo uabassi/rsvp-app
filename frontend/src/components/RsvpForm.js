@@ -55,11 +55,11 @@ function RsvpForm({ guestData }) {
   return (
     <div className="rsvp-content">
       <h2 className="rsvp-form-title">Submit Your RSVP</h2>
-      <p className="rsvp-form-subtitle">Welcome, {guestData.name}!</p>
+      <p className="rsvp-form-subtitle">Assalamu 'alaykum, {guestData.name}!</p>
       <form onSubmit={handleSubmit} className="rsvp-form">
         {guestData.events.map((event, index) => (
           <div key={event.id} className="event-card">
-            <h3 className="event-title">{event.name} - {event.date}</h3>
+            <h3 className="event-title">{event.name} | {event.date}</h3>
             <div className="form-group">
               <label className="form-label">
                 {guestData.has_spouse === 1 
