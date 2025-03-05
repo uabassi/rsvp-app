@@ -1,0 +1,11 @@
+{
+  "name": "wedding-rsvp",
+  "version": "1.0.0",
+  "engines": {
+    "node": "16.x"
+  },
+  "scripts": {
+    "start": "node backend/server.js",
+    "heroku-postbuild": "cd frontend && npm install && npm run build"
+  }
+} 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import config from '../config';
 
 function LoginForm({ setGuestData }) {
   // State variables for form management
@@ -14,7 +15,7 @@ function LoginForm({ setGuestData }) {
     try {
       // Make API call to backend to validate RSVP code
       // If successful, response will contain guest information
-      const response = await axios.post('http://localhost:3001/api/login', {
+      const response = await axios.post(`${config.apiUrl}/api/login`, {
         rsvpCode
       });
       // Update parent component with guest data on successful login
