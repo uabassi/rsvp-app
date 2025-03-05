@@ -70,4 +70,21 @@ tr:hover {
 .home-link:hover {
     background-color: #f5f5f5;
     color: #333;
+}
+
+.refresh-button {
+    display: inline-block;
+    margin: 1rem;
+    padding: 0.5rem 1rem;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #333
+}
+
+.refresh-button:hover {
+    background-color: #e9ecef;
+    border-color: #ccc;
 } 

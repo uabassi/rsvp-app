@@ -7,16 +7,34 @@ function AdminView() {
     const [eventTotals, setEventTotals] = useState([]);
     const [guestList, setGuestList] = useState([]);
 
-    useEffect(() => {
-        // Fetch event totals
-        axios.get(`${config.apiUrl}/api/event-totals`)
-            .then(response => setEventTotals(response.data))
-            .catch(error => console.error('Error fetching totals:', error));
+    const fetchData = async () => {
+        try {
+            // Fetch event totals
+            const totalsResponse = await axios.get(`${config.apiUrl}/api/event-totals`);
+            setEventTotals(totalsResponse.data);
 
-        // Fetch guest list
-        axios.get(`${config.apiUrl}/api/event-guest-list`)
-            .then(response => setGuestList(response.data))
-            .catch(error => console.error('Error fetching guest list:', error));
+            // Fetch guest list
+            const guestListResponse = await axios.get(`${config.apiUrl}/api/event-guest-list`);
+            console.log('Guest list response:', guestListResponse.data);
+            setGuestList(guestListResponse.data);
+
+            // Fetch debug data
+            const debugResponse = await axios.get(`${config.apiUrl}/api/debug-guest-list`);
+            console.log('Debug data:', debugResponse.data);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    };
+
+    useEffect(() => {
+        // Initial fetch
+        fetchData();
+
+        // Set up refresh interval (every 5 seconds)
+        const interval = setInterval(fetchData, 5000);
+
+        // Cleanup interval on component unmount
+        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -24,6 +42,9 @@ function AdminView() {
             <div className="admin-header">
                 <h1>Wedding RSVP Admin</h1>
                 <a href="/" className="home-link">← Back to Home</a>
+                <button onClick={fetchData} className="refresh-button">
+                    Refresh Data
+                </button>
             </div>
 
             <div className="admin-section">
@@ -62,6 +83,7 @@ function AdminView() {
                             <th>Status</th>
                             <th>Adults</th>
                             <th>Children</th>
+                            <th>Children's Comments</th>
                             <th>Comments</th>
                         </tr>
                     </thead>
@@ -73,6 +95,7 @@ function AdminView() {
                                 <td>{guest.attending_status}</td>
                                 <td>{guest.adult_count}</td>
                                 <td>{guest.children_count}</td>
+                                <td>{guest.children_details}</td>
                                 <td>{guest.comments}</td>
                             </tr>
                         ))}

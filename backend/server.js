@@ -14,9 +14,6 @@ app.use(cors());
 // Parse JSON request bodies
 app.use(express.json());
 
-// Initialize database tables and test data
-initializeDatabase();
-
 // Modified login endpoint to include family information
 app.post('/api/login', async (req, res) => {
     const { rsvpCode } = req.body;
@@ -167,7 +164,67 @@ app.get('/api/test-db', async (req, res) => {
     }
 });
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-}); 
+// Get event totals
+app.get('/api/event-totals', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM event_totals ORDER BY event_date');
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching event totals:', err);
+        res.status(500).json({ error: 'Error fetching event totals' });
+    }
+});
+
+// Get guest list by event
+app.get('/api/event-guest-list', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM event_guest_list ORDER BY event_name, guest_name');
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching guest list:', err);
+        res.status(500).json({ error: 'Error fetching guest list' });
+    }
+});
+
+// Add this debugging endpoint
+app.get('/api/debug-guest-list', async (req, res) => {
+    try {
+        // Get raw data from tables
+        const guests = await pool.query('SELECT * FROM guests');
+        const families = await pool.query('SELECT * FROM families');
+        const events = await pool.query('SELECT * FROM events');
+        const guestEvents = await pool.query('SELECT * FROM guest_events');
+        const rsvpResponses = await pool.query('SELECT * FROM rsvp_responses');
+        
+        res.json({
+            guests: guests.rows,
+            families: families.rows,
+            events: events.rows,
+            guestEvents: guestEvents.rows,
+            rsvpResponses: rsvpResponses.rows
+        });
+    } catch (err) {
+        console.error('Error getting debug data:', err);
+        res.status(500).json({ error: 'Error getting debug data' });
+    }
+});
+
+// Update the initialization and server start
+async function startServer() {
+    try {
+        // Wait for database initialization
+        await initializeDatabase();
+        console.log('Database initialized successfully');
+
+        // Start the server after database is ready
+        app.listen(port, () => {
+            console.log(`Server running on port ${port}`);
+        });
+    } catch (err) {
+        console.error('Failed to start server:', err);
+        process.exit(1);
+    }
+}
+
+// Call startServer instead of app.listen
+startServer(); 

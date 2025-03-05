@@ -11,20 +11,22 @@ const pool = new Pool({
 });
 
 // Function to set up all database tables and initial test data
-function initializeDatabase() {
-    // First drop everything
-    pool.query(`
-        DROP VIEW IF EXISTS formatted_rsvp_responses CASCADE;
-        DROP VIEW IF EXISTS event_totals CASCADE;
-        DROP VIEW IF EXISTS event_guest_list CASCADE;
-        DROP TABLE IF EXISTS rsvp_responses CASCADE;
-        DROP TABLE IF EXISTS guest_events CASCADE;
-        DROP TABLE IF EXISTS events CASCADE;
-        DROP TABLE IF EXISTS guests CASCADE;
-        DROP TABLE IF EXISTS families CASCADE;
-    `).then(() => {
+async function initializeDatabase() {
+    try {
+        // First drop everything
+        await pool.query(`
+            DROP VIEW IF EXISTS formatted_rsvp_responses CASCADE;
+            DROP VIEW IF EXISTS event_totals CASCADE;
+            DROP VIEW IF EXISTS event_guest_list CASCADE;
+            DROP TABLE IF EXISTS rsvp_responses CASCADE;
+            DROP TABLE IF EXISTS guest_events CASCADE;
+            DROP TABLE IF EXISTS events CASCADE;
+            DROP TABLE IF EXISTS guests CASCADE;
+            DROP TABLE IF EXISTS families CASCADE;
+        `);
+
         // Create tables one by one
-        return pool.query(`
+        await pool.query(`
             CREATE TABLE families (
                 id SERIAL PRIMARY KEY,
                 rsvp_code TEXT UNIQUE NOT NULL,
@@ -32,24 +34,24 @@ function initializeDatabase() {
                 has_spouse BOOLEAN DEFAULT false
             );
         `);
-    }).then(() => {
-        return pool.query(`
+
+        await pool.query(`
             CREATE TABLE guests (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 family_id INTEGER REFERENCES families(id)
             );
         `);
-    }).then(() => {
-        return pool.query(`
+
+        await pool.query(`
             CREATE TABLE events (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 date TEXT
             );
         `);
-    }).then(() => {
-        return pool.query(`
+
+        await pool.query(`
             CREATE TABLE guest_events (
                 guest_id INTEGER REFERENCES guests(id),
                 event_id INTEGER REFERENCES events(id),
@@ -57,8 +59,8 @@ function initializeDatabase() {
                 PRIMARY KEY (guest_id, event_id)
             );
         `);
-    }).then(() => {
-        return pool.query(`
+
+        await pool.query(`
             CREATE TABLE rsvp_responses (
                 id SERIAL PRIMARY KEY,
                 guest_id INTEGER REFERENCES guests(id),
@@ -70,9 +72,9 @@ function initializeDatabase() {
                 comment TEXT
             );
         `);
-    }).then(() => {
+
         // Insert initial events
-        return pool.query(`
+        await pool.query(`
             INSERT INTO events (name, date) VALUES 
                 ('Nikkah', '2025-06-13'),
                 ('Mehndi', '2025-06-19'),
@@ -80,9 +82,9 @@ function initializeDatabase() {
                 ('Valima', '2025-06-22')
             ON CONFLICT DO NOTHING;
         `);
-    }).then(() => {
+
         // Create views one by one
-        return pool.query(`
+        await pool.query(`
             CREATE VIEW formatted_rsvp_responses AS
             SELECT 
                 r.id,
@@ -106,8 +108,8 @@ function initializeDatabase() {
             JOIN events e ON r.event_id = e.id
             ORDER BY r.id;
         `);
-    }).then(() => {
-        return pool.query(`
+
+        await pool.query(`
             CREATE VIEW event_totals AS
             SELECT 
                 e.id as event_id,
@@ -150,8 +152,9 @@ function initializeDatabase() {
                 ), 0) as total_attendees
             FROM events e;
         `);
-    }).then(() => {
-        return pool.query(`
+
+        // Create the event_guest_list view last
+        await pool.query(`
             CREATE VIEW event_guest_list AS
             SELECT 
                 e.name as event_name,
@@ -160,13 +163,14 @@ function initializeDatabase() {
                 f.has_spouse,
                 f.has_children,
                 CASE 
+                    WHEN r.attending IS NULL THEN 'Pending'
                     WHEN r.attending THEN 'Yes'
-                    WHEN r.attending = false THEN 'No'
-                    ELSE 'Pending'
+                    ELSE 'No'
                 END as attending_status,
                 CASE 
-                    WHEN f.has_spouse THEN 2
-                    ELSE 1
+                    WHEN f.has_spouse AND r.attending THEN 2
+                    WHEN r.attending THEN 1
+                    ELSE 0
                 END as adult_count,
                 COALESCE(r.number_of_children, 0) as children_count,
                 COALESCE(r.children_comments, '') as children_details,
@@ -178,9 +182,11 @@ function initializeDatabase() {
             LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
             ORDER BY e.date, g.name;
         `);
-    }).catch(err => {
+
+    } catch (err) {
         console.error('Error initializing database:', err);
-    });
+        throw err;
+    }
 }
 
 // Function to get formatted RSVP responses
