@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 import LoginForm from './components/LoginForm';
 import RsvpForm from './components/RsvpForm';
+import AdminView from './components/AdminView';
 import engagementPhoto from './assets/ring.png';
 
 function App() {
@@ -11,7 +13,7 @@ function App() {
     setGuestData(null);
   };
 
-  return (
+  const MainPage = () => (
     <div className="landing-page">
       <header className="landing-header" onClick={handleReset}>
         <h1>Malaika & Umayya</h1>
@@ -31,6 +33,15 @@ function App() {
         />
       </div>
     </div>
+  );
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/admin" element={<AdminView />} />
+        <Route path="/" element={<MainPage />} />
+      </Routes>
+    </Router>
   );
 }
 

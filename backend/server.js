@@ -1,6 +1,7 @@
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const cors = require('cors');
-const { db, initializeDatabase, getFormattedRsvpResponses, importGuestsFromCSV } = require('./database');
+const { pool, initializeDatabase, getFormattedRsvpResponses, importGuestsFromCSV } = require('./database');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 const fs = require('fs');
@@ -17,108 +18,91 @@ app.use(express.json());
 initializeDatabase();
 
 // Modified login endpoint to include family information
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { rsvpCode } = req.body;
     
-    db.get(
-        `SELECT 
-            f.id as family_id, 
-            f.rsvp_code, 
-            f.has_children,
-            f.has_spouse,
-            g.id as guest_id, 
-            g.name,
-            json_group_array(
-                json_object(
-                    'id', e.id,
-                    'name', e.name,
-                    'date', e.date,
-                    'children_invited', ge.children_invited
-                )
-            ) as events
-         FROM families f 
-         JOIN guests g ON f.id = g.family_id 
-         JOIN guest_events ge ON g.id = ge.guest_id
-         JOIN events e ON ge.event_id = e.id
-         WHERE f.rsvp_code = ?
-         GROUP BY g.id`,
-        [rsvpCode],
-        (err, row) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            if (!row) {
-                res.status(404).json({ error: 'Invalid RSVP code' });
-                return;
-            }
-            // Parse the events JSON string
-            row.events = JSON.parse(row.events);
-            res.json(row);
-        }
-    );
-});
+    try {
+        const result = await pool.query(
+            `SELECT 
+                f.id as family_id, 
+                f.rsvp_code, 
+                f.has_children,
+                f.has_spouse,
+                g.id as guest_id, 
+                g.name,
+                json_agg(
+                    json_build_object(
+                        'id', e.id,
+                        'name', e.name,
+                        'date', e.date,
+                        'children_invited', ge.children_invited
+                    )
+                ) as events
+             FROM families f 
+             JOIN guests g ON f.id = g.family_id 
+             JOIN guest_events ge ON g.id = ge.guest_id
+             JOIN events e ON ge.event_id = e.id
+             WHERE f.rsvp_code = $1
+             GROUP BY f.id, g.id`,
+            [rsvpCode]
+        );
 
-// Modified RSVP endpoint to handle children information
-app.post('/api/rsvp', (req, res) => {
-    const { guestId, responses } = req.body;
-    
-    db.run('DELETE FROM rsvp_responses WHERE guest_id = ?', [guestId], (deleteErr) => {
-        if (deleteErr) {
-            console.error('Error deleting existing responses:', deleteErr);
-            res.status(500).json({ error: 'Error updating RSVP responses' });
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Invalid RSVP code' });
             return;
         }
 
-        Promise.all(
-            responses.map(({ 
-                event_id, 
-                attending, 
-                comment,
-                children_attending,
-                number_of_children,
-                children_comments 
-            }) => {
-                return new Promise((resolve, reject) => {
-                    db.run(
-                        `INSERT INTO rsvp_responses (
-                            guest_id, 
-                            event_id, 
-                            attending, 
-                            children_attending,
-                            number_of_children,
-                            children_comments,
-                            comment
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                        [
-                            guestId, 
-                            event_id, 
-                            attending, 
-                            children_attending,
-                            number_of_children,
-                            children_comments,
-                            comment
-                        ],
-                        function(err) {
-                            if (err) {
-                                console.error('Error inserting response:', err);
-                                reject(err);
-                            } else {
-                                resolve(this.lastID);
-                            }
-                        }
-                    );
-                });
-            })
-        )
-        .then(() => {
-            res.json({ message: 'RSVP submitted successfully' });
-        })
-        .catch(err => {
-            console.error('Error in RSVP submission:', err);
-            res.status(500).json({ error: 'Error saving RSVP responses' });
-        });
-    });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Modified RSVP endpoint
+app.post('/api/rsvp', async (req, res) => {
+    const { guestId, responses } = req.body;
+    
+    try {
+        await pool.query('BEGIN');
+
+        // Delete existing responses
+        await pool.query(
+            'DELETE FROM rsvp_responses WHERE guest_id = $1',
+            [guestId]
+        );
+
+        // Insert new responses
+        for (const response of responses) {
+            await pool.query(
+                `INSERT INTO rsvp_responses (
+                    guest_id, 
+                    event_id, 
+                    attending, 
+                    children_attending,
+                    number_of_children,
+                    children_comments,
+                    comment
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [
+                    guestId,
+                    response.event_id,
+                    response.attending,
+                    response.children_attending,
+                    response.number_of_children,
+                    response.children_comments,
+                    response.comment
+                ]
+            );
+        }
+
+        await pool.query('COMMIT');
+        res.json({ message: 'RSVP updated successfully' });
+    } catch (err) {
+        await pool.query('ROLLBACK');
+        console.error('Error saving RSVP:', err);
+        res.status(500).json({ error: 'Error saving RSVP responses' });
+    }
 });
 
 // Add this new endpoint
@@ -151,22 +135,35 @@ app.post('/api/upload-guests', upload.single('file'), async (req, res) => {
     }
 });
 
-// Add this new endpoint to get event totals
+// Update event totals endpoint
 app.get('/api/event-totals', async (req, res) => {
     try {
-        db.all(`
-            SELECT * FROM event_totals
-            ORDER BY event_date
-        `, [], (err, rows) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json(rows);
-        });
+        const result = await pool.query(
+            `SELECT * FROM event_totals ORDER BY event_date`
+        );
+        res.json(result.rows);
     } catch (err) {
         console.error('Error fetching event totals:', err);
         res.status(500).json({ error: 'Error fetching event totals' });
+    }
+});
+
+// Add this near your other endpoints
+app.get('/api/test-db', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT NOW()');
+        res.json({ 
+            success: true, 
+            message: 'Database connected successfully!',
+            timestamp: result.rows[0].now
+        });
+    } catch (err) {
+        console.error('Database connection error:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Database connection failed',
+            error: err.message
+        });
     }
 });
 

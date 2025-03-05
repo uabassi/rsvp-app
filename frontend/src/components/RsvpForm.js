@@ -1,30 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './RsvpForm.css';  // Add this import
 
 
 function RsvpForm({ guestData }) {
+  console.log('Initial Guest Data:', guestData);
+  
   // State to store responses for each event
-  const [responses, setResponses] = useState(
-    guestData.events.map(event => ({
+  const [responses, setResponses] = useState(() => {
+    const initialResponses = guestData.events.map(event => ({
       event_id: event.id,
       attending: true,
       comment: '',
       children_attending: false,
       number_of_children: 0,
       children_comments: ''
-    }))
-  );
+    }));
+    console.log('Initial responses:', initialResponses);
+    return initialResponses;
+  });
+
+  // Log responses whenever they change
+  useEffect(() => {
+    console.log('Responses updated:', responses);
+  }, [responses]);
+
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
   // Handle change for a specific event response
   const handleResponseChange = (index, field, value) => {
+    console.log('Changing response:', { index, field, value }); // Add logging
     const newResponses = [...responses];
     newResponses[index] = {
       ...newResponses[index],
       [field]: value
     };
+    console.log('New responses:', newResponses); // Add logging
     setResponses(newResponses);
   };
 
@@ -84,49 +96,44 @@ function RsvpForm({ guestData }) {
               </select>
             </div>
 
-            {/* Only show children options if family has children, is attending, and children are invited to this event */}
-            {guestData.has_children === 1 && 
-              responses[index].attending && 
-              event.children_invited === 1 && (
-                <>
+            {event.children_invited && responses[index].attending && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Number of children attending:</label>
+                  <select
+                    className="form-select"
+                    value={responses[index].number_of_children || 0}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      const newResponses = [...responses];
+                      newResponses[index] = {
+                        ...newResponses[index],
+                        number_of_children: value,
+                        children_attending: value > 0
+                      };
+                      setResponses(newResponses);
+                    }}
+                  >
+                    {[...Array(11)].map((_, i) => (
+                      <option key={i} value={i}>
+                        {i} {i === 1 ? 'child' : 'children'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {(responses[index].number_of_children || 0) > 0 && (
                   <div className="form-group">
-                    <label className="form-label">Will children be attending?</label>
-                    <select
-                      className="form-select"
-                      value={responses[index].children_attending ? "1" : "0"}
-                      onChange={(e) => handleResponseChange(index, 'children_attending', e.target.value === "1")}
-                    >
-                      <option value="1">Yes, children will attend</option>
-                      <option value="0">No, children will not attend</option>
-                    </select>
+                    <label className="form-label">Children's details/comments:</label>
+                    <textarea
+                      className="form-textarea"
+                      value={responses[index].children_comments || ''}
+                      onChange={(e) => handleResponseChange(index, 'children_comments', e.target.value)}
+                      placeholder="Please add any details about the children (ages, names, etc.)"
+                    />
                   </div>
-
-                  {responses[index].children_attending && (
-                    <>
-                      <div className="form-group">
-                        <label className="form-label">Number of Family attending:</label>
-                        <input
-                          type="number"
-                          className="form-input"
-                          min="1"
-                          max="10"
-                          value={responses[index].number_of_children}
-                          onChange={(e) => handleResponseChange(index, 'number_of_children', parseInt(e.target.value))}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Children's details/comments:</label>
-                        <textarea
-                          className="form-textarea"
-                          value={responses[index].children_comments}
-                          onChange={(e) => handleResponseChange(index, 'children_comments', e.target.value)}
-                          placeholder="Please add any details about the children (ages, names, etc.)"
-                        />
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
+                )}
+              </>
+            )}
 
             <div className="form-group">
               <label className="form-label">Comments for {event.name}:</label>
