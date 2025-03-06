@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 import LoginForm from './components/LoginForm';
 import RsvpForm from './components/RsvpForm';
@@ -47,9 +47,7 @@ function App() {
         <Route 
           path="/admin" 
           element={
-            isAuthenticated ? 
-            <AdminView /> : 
-            <AdminLogin setIsAuthenticated={setIsAuthenticated} />
+            isAuthenticated ? <AdminView /> : <AdminLogin setIsAuthenticated={setIsAuthenticated} />
           } 
         />
       </Routes>
