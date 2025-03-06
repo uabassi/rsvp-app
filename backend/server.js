@@ -5,14 +5,31 @@ const { pool, initializeDatabase, getFormattedRsvpResponses, importGuestsFromCSV
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 const fs = require('fs');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 
 const app = express();
 const port = 3001;
 
 // Enable CORS to allow requests from frontend (running on different port)
-app.use(cors());
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production' 
+        ? 'https://mkandua-rsvp.netlify.app'
+        : 'http://localhost:3000'
+}));
 // Parse JSON request bodies
 app.use(express.json());
+
+// Add security middleware
+app.use(helmet());
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+});
+
+app.use('/api/', limiter);
 
 // Modified login endpoint to include family information
 app.post('/api/login', async (req, res) => {
@@ -209,6 +226,17 @@ app.get('/api/debug-guest-list', async (req, res) => {
     }
 });
 
+// Add at the top after imports
+process.on('unhandledRejection', (error) => {
+    console.error('Unhandled promise rejection:', error);
+});
+
+// Update pool error handling
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+    process.exit(-1);
+});
+
 // Update the initialization and server start
 async function startServer() {
     try {
@@ -227,4 +255,16 @@ async function startServer() {
 }
 
 // Call startServer instead of app.listen
-startServer(); 
+startServer();
+
+app.use(compression());
+
+// Add at the end before app.listen
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        error: process.env.NODE_ENV === 'production' 
+            ? 'Internal server error' 
+            : err.message 
+    });
+}); 
