@@ -13,17 +13,15 @@ function LoginForm({ setGuestData }) {
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent default form submission behavior
     try {
-      // Make API call to backend to validate RSVP code
-      // If successful, response will contain guest information
+      console.log('Attempting to connect to:', `${config.apiUrl}/api/login`);
       const response = await axios.post(`${config.apiUrl}/api/login`, {
         rsvpCode
       });
-      // Update parent component with guest data on successful login
+      console.log('Response:', response.data);
       setGuestData(response.data);
-      // Clear any previous error messages
       setError('');
     } catch (err) {
-      // Handle any errors (invalid code, server issues, etc.)
+      console.error('Full error:', err);
       setError(err.response?.data?.error || 'Error connecting to server');
     }
   };
