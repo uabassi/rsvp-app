@@ -87,4 +87,18 @@ tr:hover {
 .refresh-button:hover {
     background-color: #e9ecef;
     border-color: #ccc;
+}
+
+.delete-button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.delete-button:hover {
+    background-color: #c82333;
 } 

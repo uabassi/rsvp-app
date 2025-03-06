@@ -26,6 +26,18 @@ function AdminView() {
         }
     };
 
+    const handleDelete = async (guestId) => {
+        if (window.confirm('Are you sure you want to delete this response?')) {
+            try {
+                await axios.delete(`${config.apiUrl}/api/rsvp/${guestId}`);
+                // Refresh the data
+                fetchData();
+            } catch (error) {
+                console.error('Error deleting response:', error);
+            }
+        }
+    };
+
     useEffect(() => {
         // Initial fetch
         fetchData();
@@ -85,6 +97,7 @@ function AdminView() {
                             <th>Children</th>
                             <th>Children's Comments</th>
                             <th>Comments</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -97,6 +110,14 @@ function AdminView() {
                                 <td>{guest.children_count}</td>
                                 <td>{guest.children_details}</td>
                                 <td>{guest.comments}</td>
+                                <td>
+                                    <button 
+                                        onClick={() => handleDelete(guest.guest_id)}
+                                        className="delete-button"
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
