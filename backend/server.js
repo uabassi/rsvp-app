@@ -15,7 +15,7 @@ const port = 3001;
 // Add this line before other middleware
 app.set('trust proxy', 1);
 
-// Enable CORS to allow requests from frontend (running on different port)
+// Enable CORS to allow requests from frontend
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
         ? ['https://malaikaumayya2025.netlify.app', 'http://localhost:3000']
@@ -223,6 +223,26 @@ app.get('/api/debug-guest-list', async (req, res) => {
             events: events.rows,
             guestEvents: guestEvents.rows,
             rsvpResponses: rsvpResponses.rows
+        });
+    } catch (err) {
+        console.error('Error getting debug data:', err);
+        res.status(500).json({ error: 'Error getting debug data' });
+    }
+});
+
+// Add this debugging endpoint
+app.get('/api/debug-tables', async (req, res) => {
+    try {
+        const families = await pool.query('SELECT * FROM families');
+        const guests = await pool.query('SELECT * FROM guests');
+        const events = await pool.query('SELECT * FROM events');
+        const guestEvents = await pool.query('SELECT * FROM guest_events');
+        
+        res.json({
+            families: families.rows,
+            guests: guests.rows,
+            events: events.rows,
+            guestEvents: guestEvents.rows
         });
     } catch (err) {
         console.error('Error getting debug data:', err);
