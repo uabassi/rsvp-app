@@ -2,7 +2,8 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 
-const csvPath = '../guests.csv';
+const csvPath = './guests.csv';
+const API_URL = 'https://mkandua-rsvp.onrender.com';
 
 // Check if file exists
 if (!fs.existsSync(csvPath)) {
@@ -13,7 +14,7 @@ if (!fs.existsSync(csvPath)) {
 const form = new FormData();
 form.append('file', fs.createReadStream(csvPath));
 
-axios.post('http://localhost:3001/api/upload-guests', form, {
+axios.post(`${API_URL}/api/upload-guests`, form, {
     headers: {
         ...form.getHeaders()
     }

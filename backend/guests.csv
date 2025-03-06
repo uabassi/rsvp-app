@@ -1,0 +1,3 @@
+name,rsvp_code,has_children,has_spouse,invited_events,children_invited_events
+"Abassi Family",TEST123,1,1,"Nikkah,Baraat,Valima","Valima"
+"Hamza Ashraf",TEST456,0,0,"Mehndi,Baraat","Mehndi"
