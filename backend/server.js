@@ -15,7 +15,7 @@ const port = 3001;
 // Enable CORS to allow requests from frontend (running on different port)
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? 'https://mkandua-rsvp.netlify.app'
+        ? 'malaikaumayya2025.netlify.app'
         : 'http://localhost:3000'
 }));
 // Parse JSON request bodies
