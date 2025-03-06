@@ -12,11 +12,15 @@ const compression = require('compression');
 const app = express();
 const port = 3001;
 
+// Add this line before other middleware
+app.set('trust proxy', 1);
+
 // Enable CORS to allow requests from frontend (running on different port)
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? 'https://malaikaumayya2025.netlify.app'
-        : 'http://localhost:3000'
+        ? ['https://malaikaumayya2025.netlify.app', 'http://localhost:3000']
+        : 'http://localhost:3000',
+    credentials: true
 }));
 // Parse JSON request bodies
 app.use(express.json());
