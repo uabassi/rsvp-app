@@ -181,7 +181,14 @@ async function initializeDatabase() {
             JOIN guests g ON ge.guest_id = g.id
             JOIN families f ON g.family_id = f.id
             LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
-            ORDER BY g.name, e.date;
+            ORDER BY 
+                CASE e.name
+                    WHEN 'Nikkah' THEN 1
+                    WHEN 'Mehndi' THEN 2
+                    WHEN 'Baraat' THEN 3
+                    WHEN 'Valima' THEN 4
+                END,
+                g.name;
         `);
 
     } catch (err) {
