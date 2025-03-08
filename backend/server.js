@@ -250,38 +250,26 @@ app.get('/api/debug-tables', async (req, res) => {
     }
 });
 
-// Add this endpoint to delete responses
+// Update the delete endpoint to only remove RSVP responses
 app.delete('/api/rsvp/:guestId', async (req, res) => {
     try {
         const { guestId } = req.params;
         
         await pool.query('BEGIN');
         
-        // Delete RSVP responses
+        // Only delete RSVP responses
         await pool.query(
             'DELETE FROM rsvp_responses WHERE guest_id = $1',
             [guestId]
         );
         
-        // Delete guest_events
-        await pool.query(
-            'DELETE FROM guest_events WHERE guest_id = $1',
-            [guestId]
-        );
-        
-        // Delete guest
-        await pool.query(
-            'DELETE FROM guests WHERE id = $1',
-            [guestId]
-        );
-        
         await pool.query('COMMIT');
         
-        res.json({ message: 'Guest and responses deleted successfully' });
+        res.json({ message: 'RSVP responses deleted successfully' });
     } catch (err) {
         await pool.query('ROLLBACK');
-        console.error('Error deleting guest:', err);
-        res.status(500).json({ error: 'Error deleting guest data' });
+        console.error('Error deleting responses:', err);
+        res.status(500).json({ error: 'Error deleting RSVP responses' });
     }
 });
 
