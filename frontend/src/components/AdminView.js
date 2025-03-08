@@ -29,11 +29,13 @@ function AdminView() {
     const handleDelete = async (guestId) => {
         if (window.confirm('Are you sure you want to delete this response?')) {
             try {
+                console.log('Deleting guest:', guestId);
                 await axios.delete(`${config.apiUrl}/api/rsvp/${guestId}`);
-                // Refresh the data
+                // Refresh the data after successful deletion
                 fetchData();
             } catch (error) {
                 console.error('Error deleting response:', error);
+                alert('Failed to delete response');
             }
         }
     };

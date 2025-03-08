@@ -158,6 +158,7 @@ async function initializeDatabase() {
             CREATE VIEW event_guest_list AS
             SELECT 
                 e.name as event_name,
+                g.id as guest_id,
                 g.name as guest_name,
                 f.rsvp_code,
                 f.has_spouse,
