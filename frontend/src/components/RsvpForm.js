@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './RsvpForm.css';  // Add this import
+import config from '../config';
 
 
 function RsvpForm({ guestData }) {
   console.log('Initial Guest Data:', guestData);
+  console.log('API URL:', config.apiUrl);
   
   // State to store responses for each event
   const [responses, setResponses] = useState(() => {
@@ -43,7 +45,8 @@ function RsvpForm({ guestData }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3001/api/rsvp', {
+      console.log('Submitting to:', `${config.apiUrl}/api/rsvp`);
+      await axios.post(`${config.apiUrl}/api/rsvp`, {
         guestId: guestData.guest_id,
         responses
       });
