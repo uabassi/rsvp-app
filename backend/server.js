@@ -273,6 +273,41 @@ app.delete('/api/rsvp/:guestId', async (req, res) => {
     }
 });
 
+// Add this new endpoint for completely removing a guest
+app.delete('/api/guest/:guestId', async (req, res) => {
+    try {
+        const { guestId } = req.params;
+        
+        await pool.query('BEGIN');
+        
+        // Get the family_id first
+        const familyResult = await pool.query(
+            'SELECT family_id FROM guests WHERE id = $1',
+            [guestId]
+        );
+        
+        if (familyResult.rows.length === 0) {
+            throw new Error('Guest not found');
+        }
+        
+        const familyId = familyResult.rows[0].family_id;
+        
+        // Delete in correct order to handle foreign key constraints
+        await pool.query('DELETE FROM rsvp_responses WHERE guest_id = $1', [guestId]);
+        await pool.query('DELETE FROM guest_events WHERE guest_id = $1', [guestId]);
+        await pool.query('DELETE FROM guests WHERE id = $1', [guestId]);
+        await pool.query('DELETE FROM families WHERE id = $1', [familyId]);
+        
+        await pool.query('COMMIT');
+        
+        res.json({ message: 'Guest completely removed from database' });
+    } catch (err) {
+        await pool.query('ROLLBACK');
+        console.error('Error removing guest:', err);
+        res.status(500).json({ error: 'Error removing guest from database' });
+    }
+});
+
 // Add at the top after imports
 process.on('unhandledRejection', (error) => {
     console.error('Unhandled promise rejection:', error);

@@ -26,16 +26,42 @@ function AdminView() {
         }
     };
 
-    const handleDelete = async (guestId) => {
-        if (window.confirm('Are you sure you want to delete this response?')) {
+    const handleDeleteResponse = async (guestId) => {
+        if (window.confirm('Are you sure you want to delete this RSVP response? The guest can still RSVP again.')) {
             try {
-                console.log('Deleting guest:', guestId);
                 await axios.delete(`${config.apiUrl}/api/rsvp/${guestId}`);
-                // Refresh the data after successful deletion
+                // Refresh the data
                 fetchData();
             } catch (error) {
                 console.error('Error deleting response:', error);
                 alert('Failed to delete response');
+            }
+        }
+    };
+
+    const handleDeleteGuest = async (guestId) => {
+        if (window.confirm('WARNING: This will completely remove this guest from the database. They will not be able to RSVP without being re-added. Continue?')) {
+            try {
+                await axios.delete(`${config.apiUrl}/api/guest/${guestId}`);
+                // Refresh the data
+                fetchData();
+            } catch (error) {
+                console.error('Error deleting guest:', error);
+                alert('Failed to delete guest');
+            }
+        }
+    };
+
+    const handleClearDatabase = async () => {
+        if (window.confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+            try {
+                await axios.post(`${config.apiUrl}/api/clear-data`);
+                alert('Database cleared successfully');
+                // Refresh the data
+                fetchData();
+            } catch (error) {
+                console.error('Error clearing database:', error);
+                alert('Failed to clear database');
             }
         }
     };
@@ -58,6 +84,9 @@ function AdminView() {
                 <a href="/" className="home-link">← Back to Home</a>
                 <button onClick={fetchData} className="refresh-button">
                     Refresh Data
+                </button>
+                <button onClick={handleClearDatabase} className="clear-button">
+                    Clear Database
                 </button>
             </div>
 
@@ -112,12 +141,18 @@ function AdminView() {
                                 <td>{guest.children_count}</td>
                                 <td>{guest.children_details}</td>
                                 <td>{guest.comments}</td>
-                                <td>
+                                <td className="action-buttons">
                                     <button 
-                                        onClick={() => handleDelete(guest.guest_id)}
+                                        onClick={() => handleDeleteResponse(guest.guest_id)}
                                         className="delete-button"
                                     >
-                                        Delete
+                                        Delete Response
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteGuest(guest.guest_id)}
+                                        className="remove-button"
+                                    >
+                                        Remove from DB
                                     </button>
                                 </td>
                             </tr>

@@ -89,16 +89,33 @@ tr:hover {
     border-color: #ccc;
 }
 
-.delete-button {
-    background-color: #dc3545;
-    color: white;
-    border: none;
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.delete-button, .remove-button {
     padding: 0.5rem 1rem;
+    border: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9rem;
+    color: white;
+}
+
+.delete-button {
+    background-color: #dc3545;
+}
+
+.remove-button {
+    background-color: #6c757d;
 }
 
 .delete-button:hover {
     background-color: #c82333;
+}
+
+.remove-button:hover {
+    background-color: #5a6268;
 } 
