@@ -314,4 +314,39 @@ app.use((err, req, res, next) => {
             ? 'Internal server error' 
             : err.message 
     });
+});
+
+app.post('/api/clear-data', async (req, res) => {
+    try {
+        await pool.query(`
+            TRUNCATE TABLE rsvp_responses CASCADE;
+            TRUNCATE TABLE guest_events CASCADE;
+            TRUNCATE TABLE guests CASCADE;
+            TRUNCATE TABLE families CASCADE;
+        `);
+        res.json({ message: 'Data cleared successfully' });
+    } catch (err) {
+        console.error('Error clearing data:', err);
+        res.status(500).json({ error: 'Error clearing data' });
+    }
+});
+
+// Add this before startServer()
+app.get('/api/clear-database', async (req, res) => {
+    try {
+        await pool.query(`
+            TRUNCATE TABLE rsvp_responses CASCADE;
+            TRUNCATE TABLE guest_events CASCADE;
+            TRUNCATE TABLE guests CASCADE;
+            TRUNCATE TABLE families CASCADE;
+        `);
+        
+        // Reinitialize the events
+        await initializeDatabase();  // Use the existing function instead
+        
+        res.json({ message: 'Database cleared successfully' });
+    } catch (err) {
+        console.error('Error clearing database:', err);
+        res.status(500).json({ error: 'Error clearing database' });
+    }
 }); 
