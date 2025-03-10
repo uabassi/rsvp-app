@@ -85,9 +85,6 @@ function AdminView() {
                 <button onClick={fetchData} className="refresh-button">
                     Refresh Data
                 </button>
-                <button onClick={handleClearDatabase} className="clear-button">
-                    Clear Database
-                </button>
             </div>
 
             <div className="admin-section">
@@ -117,12 +114,12 @@ function AdminView() {
             </div>
 
             <div className="admin-section">
-                <h2>Guest List by Event</h2>
+                <h2>Guest List by Family</h2>
                 <table>
                     <thead>
                         <tr>
-                            <th>Event</th>
                             <th>Guest</th>
+                            <th>Event</th>
                             <th>Status</th>
                             <th>Adults</th>
                             <th>Children</th>
@@ -134,8 +131,8 @@ function AdminView() {
                     <tbody>
                         {guestList.map((guest, index) => (
                             <tr key={index}>
-                                <td>{guest.event_name}</td>
                                 <td>{guest.guest_name}</td>
+                                <td>{guest.event_name}</td>
                                 <td>{guest.attending_status}</td>
                                 <td>{guest.adult_count}</td>
                                 <td>{guest.children_count}</td>
