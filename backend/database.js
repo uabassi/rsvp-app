@@ -39,7 +39,8 @@ async function initializeDatabase() {
             CREATE TABLE guests (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
-                family_id INTEGER REFERENCES families(id)
+                family_id INTEGER REFERENCES families(id),
+                CONSTRAINT unique_name_per_family UNIQUE (name, family_id)
             );
         `);
 
@@ -225,29 +226,30 @@ function getFormattedRsvpResponses() {
 
 // Update the importGuestsFromCSV function
 async function importGuestsFromCSV(filePath) {
-    const results = [];
+    const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
     
-    // Read CSV file
-    await new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
-            .pipe(parse({ columns: true, trim: true }))
-            .on('data', (data) => results.push(data))
-            .on('end', resolve)
-            .on('error', reject);
+    const records = await new Promise((resolve, reject) => {
+        parse(fileContent, {
+            columns: true,
+            skip_empty_lines: true
+        }, (err, records) => {
+            if (err) reject(err);
+            else resolve(records);
+        });
     });
 
-    // Process each row
-    for (const row of results) {
+    for (const row of records) {
         try {
-            // Start transaction
             await pool.query('BEGIN');
 
-            // Insert or update family
+            // Insert or get family
             const familyResult = await pool.query(
                 `INSERT INTO families (rsvp_code, has_children, has_spouse)
                  VALUES ($1, $2, $3)
-                 ON CONFLICT (rsvp_code) DO UPDATE 
-                 SET has_children = $2, has_spouse = $3
+                 ON CONFLICT (rsvp_code) 
+                 DO UPDATE SET 
+                     has_children = $2,
+                     has_spouse = $3
                  RETURNING id`,
                 [
                     row.rsvp_code, 
@@ -256,32 +258,45 @@ async function importGuestsFromCSV(filePath) {
                 ]
             );
 
-            // Insert guest
+            // Insert guest with ON CONFLICT
             const guestResult = await pool.query(
                 `INSERT INTO guests (name, family_id)
                  VALUES ($1, $2)
+                 ON CONFLICT ON CONSTRAINT unique_name_per_family 
+                 DO NOTHING
                  RETURNING id`,
                 [row.name, familyResult.rows[0].id]
             );
 
-            // Handle events
-            const events = row.invited_events.split(',').map(e => e.trim());
-            const children_events = (row.children_invited_events || '').split(',').map(e => e.trim());
+            // If guest already exists, get their ID
+            let guestId;
+            if (guestResult.rows.length === 0) {
+                const existingGuest = await pool.query(
+                    'SELECT id FROM guests WHERE name = $1 AND family_id = $2',
+                    [row.name, familyResult.rows[0].id]
+                );
+                guestId = existingGuest.rows[0].id;
+            } else {
+                guestId = guestResult.rows[0].id;
+            }
 
             // Delete existing guest_events entries
             await pool.query(
                 'DELETE FROM guest_events WHERE guest_id = $1',
-                [guestResult.rows[0].id]
+                [guestId]
             );
 
             // Insert event associations
+            const events = row.invited_events.split(',').map(e => e.trim());
+            const children_events = (row.children_invited_events || '').split(',').map(e => e.trim());
+
             for (const eventName of events) {
-                if (eventName) {  // Skip empty event names
+                if (eventName) {
                     await pool.query(
                         `INSERT INTO guest_events (guest_id, event_id, children_invited)
                          SELECT $1, id, $2 FROM events WHERE name = $3`,
                         [
-                            guestResult.rows[0].id,
+                            guestId,
                             children_events.includes(eventName),
                             eventName
                         ]
@@ -289,7 +304,6 @@ async function importGuestsFromCSV(filePath) {
                 }
             }
 
-            // Commit transaction
             await pool.query('COMMIT');
         } catch (error) {
             await pool.query('ROLLBACK');
