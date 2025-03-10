@@ -73,7 +73,7 @@ async function initializeDatabase() {
             );
         `);
 
-        // Insert initial events
+        // Insert only the events
         await pool.query(`
             INSERT INTO events (name, date) VALUES 
                 ('Nikkah', '2025-06-13'),
@@ -83,41 +83,34 @@ async function initializeDatabase() {
             ON CONFLICT DO NOTHING;
         `);
 
-        // Insert family data
+        // Create the event_guest_list view
         await pool.query(`
-            INSERT INTO families (rsvp_code, has_children, has_spouse)
-            VALUES 
-                ('TEST123', true, true),
-                ('TEST456', false, false)
-            ON CONFLICT (rsvp_code) DO NOTHING;
+            CREATE OR REPLACE VIEW event_guest_list AS
+            SELECT 
+                g.name as guest_name,
+                f.rsvp_code,
+                e.name as event_name,
+                g.id as guest_id,
+                CASE 
+                    WHEN r.attending IS NULL THEN 'Pending'
+                    WHEN r.attending THEN 'Yes'
+                    ELSE 'No'
+                END as attending_status,
+                CASE 
+                    WHEN f.has_spouse AND r.attending THEN 2
+                    WHEN r.attending THEN 1
+                    ELSE 0
+                END as adult_count,
+                COALESCE(r.number_of_children, 0) as children_count,
+                COALESCE(r.children_comments, '') as children_details,
+                COALESCE(r.comment, '') as comments
+            FROM guests g
+            JOIN families f ON g.family_id = f.id
+            JOIN guest_events ge ON g.id = ge.guest_id
+            JOIN events e ON ge.event_id = e.id
+            LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
+            ORDER BY g.name, e.date;
         `);
-
-        // Get the family IDs
-        const family1 = await pool.query(`SELECT id FROM families WHERE rsvp_code = 'TEST123'`);
-        const family2 = await pool.query(`SELECT id FROM families WHERE rsvp_code = 'TEST456'`);
-
-        await pool.query(`
-            INSERT INTO guests (name, family_id)
-            VALUES 
-                ('Abassi Family', $1),
-                ('Hamza Ashraf', $2)
-            ON CONFLICT DO NOTHING;
-        `, [family1.rows[0].id, family2.rows[0].id]);
-
-        // Insert guest_events relationships
-        const guest1 = await pool.query(`SELECT id FROM guests WHERE name = 'Abassi Family'`);
-        const guest2 = await pool.query(`SELECT id FROM guests WHERE name = 'Hamza Ashraf'`);
-
-        await pool.query(`
-            INSERT INTO guest_events (guest_id, event_id, children_invited)
-            VALUES 
-                ($1, 1, false),  -- Nikkah
-                ($1, 3, false),  -- Baraat
-                ($1, 4, true),   -- Valima
-                ($2, 2, true),   -- Mehndi
-                ($2, 3, false)   -- Baraat
-            ON CONFLICT DO NOTHING;
-        `, [guest1.rows[0].id, guest2.rows[0].id]);
 
         // Create views one by one
         await pool.query(`
@@ -187,35 +180,6 @@ async function initializeDatabase() {
                     WHERE ge2.event_id = e.id AND r2.attending = true
                 ), 0) as total_attendees
             FROM events e;
-        `);
-
-        // Create the event_guest_list view last
-        await pool.query(`
-            CREATE OR REPLACE VIEW event_guest_list AS
-            SELECT 
-                g.name as guest_name,
-                f.rsvp_code,
-                e.name as event_name,
-                g.id as guest_id,
-                CASE 
-                    WHEN r.attending IS NULL THEN 'Pending'
-                    WHEN r.attending THEN 'Yes'
-                    ELSE 'No'
-                END as attending_status,
-                CASE 
-                    WHEN f.has_spouse AND r.attending THEN 2
-                    WHEN r.attending THEN 1
-                    ELSE 0
-                END as adult_count,
-                COALESCE(r.number_of_children, 0) as children_count,
-                COALESCE(r.children_comments, '') as children_details,
-                COALESCE(r.comment, '') as comments
-            FROM guests g
-            JOIN families f ON g.family_id = f.id
-            JOIN guest_events ge ON g.id = ge.guest_id
-            JOIN events e ON ge.event_id = e.id
-            LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
-            ORDER BY g.name, e.date;
         `);
 
     } catch (err) {
