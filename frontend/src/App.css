@@ -87,7 +87,7 @@ label {
 }
 
 .landing-header {
-    position: absolute;
+    position: fixed;
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
@@ -97,6 +97,8 @@ label {
     z-index: 10;
     cursor: pointer;
     transition: all 0.3s ease;
+    width: auto;
+    text-align: center;
 }
 
 .landing-header h1 {
@@ -111,7 +113,7 @@ label {
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    padding-top: 17rem;
+    padding-top: 120px;
     z-index: 2;
     text-align: center;
 }
@@ -200,24 +202,83 @@ label {
     letter-spacing: 0.1em;
 }
 
-@media (max-width: 640px) {
+.admin-login-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999;
+}
+
+.admin-login-button a {
+    text-decoration: none;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid white;
+    border-radius: 4px;
+    background-color: transparent;
+    transition: all 0.3s ease;
+    font-family: 'Montserrat', sans-serif;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    display: block;
+}
+
+.admin-login-button a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+@media screen and (max-width: 640px) {
+    .admin-login-button {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 100px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        z-index: 999;
+    }
+
+    .admin-login-button a {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        min-width: 120px;
+        text-align: center;
+    }
+
     .landing-header {
         width: 100%;
-        text-align: center;
-        left: 0;
-        transform: none;
+        font-size: 1.2rem;
+        padding: 0 10px;
     }
 
     .content-section {
-        padding: 1rem;
+        padding-top: 100px;
+        padding-bottom: 80px;
     }
 
     .rsvp-title {
-        font-size: clamp(3rem, 12vw, 4rem);
+        font-size: clamp(2.5rem, 8vw, 4rem);
+    }
+
+    .rsvp-subtitle {
+        font-size: 0.8rem;
+        margin: 1rem 0;
     }
 
     .image-section {
         height: 100vh;
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .landing-header {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+
+    .content-section {
+        padding-top: 60px;
     }
 }
 
@@ -242,30 +303,4 @@ label {
     margin: 2rem 0;
     font-weight: 300;
     color: #f4ece6;
-}
-
-.admin-login-button {
-    position: fixed;
-    top: 2rem;
-    right: 2rem;
-    z-index: 999;
-}
-
-.admin-login-button a {
-    text-decoration: none;
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border: 2px solid white;
-    border-radius: 4px;
-    background-color: transparent;
-    transition: all 0.3s ease;
-    font-family: 'Montserrat', sans-serif;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-    display: block;
-}
-
-.admin-login-button a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
 } 

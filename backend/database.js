@@ -83,6 +83,42 @@ async function initializeDatabase() {
             ON CONFLICT DO NOTHING;
         `);
 
+        // Insert family data
+        await pool.query(`
+            INSERT INTO families (rsvp_code, has_children, has_spouse)
+            VALUES 
+                ('TEST123', true, true),
+                ('TEST456', false, false)
+            ON CONFLICT (rsvp_code) DO NOTHING;
+        `);
+
+        // Get the family IDs
+        const family1 = await pool.query(`SELECT id FROM families WHERE rsvp_code = 'TEST123'`);
+        const family2 = await pool.query(`SELECT id FROM families WHERE rsvp_code = 'TEST456'`);
+
+        await pool.query(`
+            INSERT INTO guests (name, family_id)
+            VALUES 
+                ('Abassi Family', $1),
+                ('Hamza Ashraf', $2)
+            ON CONFLICT DO NOTHING;
+        `, [family1.rows[0].id, family2.rows[0].id]);
+
+        // Insert guest_events relationships
+        const guest1 = await pool.query(`SELECT id FROM guests WHERE name = 'Abassi Family'`);
+        const guest2 = await pool.query(`SELECT id FROM guests WHERE name = 'Hamza Ashraf'`);
+
+        await pool.query(`
+            INSERT INTO guest_events (guest_id, event_id, children_invited)
+            VALUES 
+                ($1, 1, false),  -- Nikkah
+                ($1, 3, false),  -- Baraat
+                ($1, 4, true),   -- Valima
+                ($2, 2, true),   -- Mehndi
+                ($2, 3, false)   -- Baraat
+            ON CONFLICT DO NOTHING;
+        `, [guest1.rows[0].id, guest2.rows[0].id]);
+
         // Create views one by one
         await pool.query(`
             CREATE VIEW formatted_rsvp_responses AS
