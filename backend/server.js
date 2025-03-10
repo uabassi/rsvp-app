@@ -196,35 +196,10 @@ app.get('/api/event-totals', async (req, res) => {
     }
 });
 
-// Get guest list by event
+// Update the event-guest-list endpoint
 app.get('/api/event-guest-list', async (req, res) => {
     try {
-        const result = await pool.query(`
-            SELECT 
-                g.name as guest_name,
-                f.rsvp_code,
-                e.name as event_name,
-                CASE 
-                    WHEN r.attending IS NULL THEN 'Pending'
-                    WHEN r.attending THEN 'Yes'
-                    ELSE 'No'
-                END as attending_status,
-                CASE 
-                    WHEN f.has_spouse AND r.attending THEN 2
-                    WHEN r.attending THEN 1
-                    ELSE 0
-                END as adult_count,
-                COALESCE(r.number_of_children, 0) as children_count,
-                COALESCE(r.children_comments, '') as children_details,
-                COALESCE(r.comment, '') as comments,
-                g.id as guest_id
-            FROM guests g
-            JOIN families f ON g.family_id = f.id
-            JOIN guest_events ge ON g.id = ge.guest_id
-            JOIN events e ON ge.event_id = e.id
-            LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
-            ORDER BY g.name, e.date
-        `);
+        const result = await pool.query('SELECT * FROM event_guest_list');
         res.json(result.rows);
     } catch (err) {
         console.error('Error fetching guest list:', err);

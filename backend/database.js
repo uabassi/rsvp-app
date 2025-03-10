@@ -191,14 +191,12 @@ async function initializeDatabase() {
 
         // Create the event_guest_list view last
         await pool.query(`
-            CREATE VIEW event_guest_list AS
+            CREATE OR REPLACE VIEW event_guest_list AS
             SELECT 
-                e.name as event_name,
-                g.id as guest_id,
                 g.name as guest_name,
                 f.rsvp_code,
-                f.has_spouse,
-                f.has_children,
+                e.name as event_name,
+                g.id as guest_id,
                 CASE 
                     WHEN r.attending IS NULL THEN 'Pending'
                     WHEN r.attending THEN 'Yes'
@@ -212,19 +210,12 @@ async function initializeDatabase() {
                 COALESCE(r.number_of_children, 0) as children_count,
                 COALESCE(r.children_comments, '') as children_details,
                 COALESCE(r.comment, '') as comments
-            FROM events e
-            JOIN guest_events ge ON e.id = ge.event_id
-            JOIN guests g ON ge.guest_id = g.id
+            FROM guests g
             JOIN families f ON g.family_id = f.id
+            JOIN guest_events ge ON g.id = ge.guest_id
+            JOIN events e ON ge.event_id = e.id
             LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
-            ORDER BY 
-                CASE e.name
-                    WHEN 'Nikkah' THEN 1
-                    WHEN 'Mehndi' THEN 2
-                    WHEN 'Baraat' THEN 3
-                    WHEN 'Valima' THEN 4
-                END,
-                g.name;
+            ORDER BY g.name, e.date;
         `);
 
     } catch (err) {
