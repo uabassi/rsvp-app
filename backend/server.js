@@ -18,7 +18,7 @@ app.set('trust proxy', 1);
 // Enable CORS to allow requests from frontend
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://malaikaumayya2025.netlify.app', 'http://localhost:3000']
+        ? ['https://mkua25.netlify.app', 'https://mkua25.com', 'http://localhost:3000']
         : 'http://localhost:3000',
     credentials: true
 }));
