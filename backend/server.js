@@ -55,7 +55,8 @@ app.post('/api/login', async (req, res) => {
                         'date', e.date,
                         'children_invited', ge.children_invited
                     )
-                ) as events
+                ) as events,
+                f.has_spouse as has_spouse
              FROM families f 
              JOIN guests g ON f.id = g.family_id 
              JOIN guest_events ge ON g.id = ge.guest_id
@@ -70,7 +71,13 @@ app.post('/api/login', async (req, res) => {
             return;
         }
 
-        res.json(result.rows[0]);
+        // Ensure has_spouse is explicitly included in the response
+        const response = {
+            ...result.rows[0],
+            has_spouse: result.rows[0].has_spouse === '1' || result.rows[0].has_spouse === true
+        };
+
+        res.json(response);
     } catch (err) {
         console.error('Database error:', err);
         res.status(500).json({ error: err.message });

@@ -77,7 +77,7 @@ function RsvpForm({ guestData }) {
             <h3 className="event-title">{event.name} | {event.date}</h3>
             <div className="form-group">
               <label className="form-label">
-                {guestData.has_spouse === 1 
+                {guestData.has_spouse === '1' || guestData.has_spouse === true
                   ? "Will you and your spouse be attending?" 
                   : "Will you be attending?"}
               </label>
@@ -87,12 +87,12 @@ function RsvpForm({ guestData }) {
                 onChange={(e) => handleResponseChange(index, 'attending', e.target.value === "1")}
               >
                 <option value="1">
-                  {guestData.has_spouse === 1 
+                  {guestData.has_spouse === '1' || guestData.has_spouse === true
                     ? "Yes, we will attend" 
                     : "Yes, I will attend"}
                 </option>
                 <option value="0">
-                  {guestData.has_spouse === 1 
+                  {guestData.has_spouse === '1' || guestData.has_spouse === true
                     ? "No, we cannot attend" 
                     : "No, I cannot attend"}
                 </option>
@@ -131,7 +131,7 @@ function RsvpForm({ guestData }) {
                       className="form-textarea"
                       value={responses[index].children_comments || ''}
                       onChange={(e) => handleResponseChange(index, 'children_comments', e.target.value)}
-                      placeholder="Please add any details about the children (ages, names, etc.)"
+                      placeholder="Please add the names of the children attending"
                     />
                   </div>
                 )}
