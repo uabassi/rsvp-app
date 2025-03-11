@@ -206,10 +206,19 @@ label {
     letter-spacing: 0.1em;
 }
 
-.admin-login-button {
-    position: fixed;
-    top: 20px;
-    right: 20px;
+.admin-login-button.fixed {
+    position: fixed !important;
+    bottom: 100px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 999;
+}
+
+.admin-login-button.scrollable {
+    position: relative !important;
+    margin-top: 20px;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
     z-index: 999;
 }
 
@@ -233,17 +242,8 @@ label {
 }
 
 @media screen and (max-width: 640px) {
-    .admin-login-button {
-        position: fixed !important;
-        top: auto !important;
-        bottom: 100px !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translateX(-50%) !important;
-        z-index: 999;
-    }
-
-    .admin-login-button a {
+    .admin-login-button.fixed a,
+    .admin-login-button.scrollable a {
         padding: 0.5rem 1rem;
         font-size: 0.8rem;
         min-width: 120px;

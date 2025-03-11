@@ -20,16 +20,21 @@ function App() {
       <header className="landing-header" onClick={handleReset}>
         <h1>Malaika & Umayya</h1>
       </header>
-      {!guestData && (
-        <div className="admin-login-button">
-          <a href="/admin">Admin</a>
-        </div>
-      )}
       <main className="content-section">
         {!guestData ? (
-          <LoginForm setGuestData={setGuestData} />
+          <>
+            <LoginForm setGuestData={setGuestData} />
+            <div className="admin-login-button fixed-bottom">
+              <a href="/admin">Admin</a>
+            </div>
+          </>
         ) : (
-          <RsvpForm guestData={guestData} />
+          <>
+            <RsvpForm guestData={guestData} />
+            <div className="admin-login-button scroll-with-content">
+              <a href="/admin">Admin</a>
+            </div>
+          </>
         )}
       </main>
       <div className="image-section">
