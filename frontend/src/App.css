@@ -87,17 +87,17 @@ label {
 }
 
 .landing-header {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
+    position: sticky;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px 0;
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.5rem;
     color: #f4ece6;
     z-index: 1000;
     cursor: pointer;
     transition: all 0.3s ease;
-    width: auto;
     text-align: center;
     background: transparent;
 }
@@ -105,7 +105,8 @@ label {
 .landing-header h1 {
     margin: 0;
     font-weight: 300;
-    padding: 10px 20px;
+    padding: 10px 00px;
+    width: 100%;
 }
 
 .content-section {
@@ -115,9 +116,10 @@ label {
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    padding-top: 120px;
+    padding-top: 100px;
     z-index: 2;
     text-align: center;
+    position: relative;
 }
 
 .rsvp-title {
@@ -249,9 +251,7 @@ label {
     }
 
     .landing-header {
-        width: 100%;
         font-size: 1.2rem;
-        padding: 0 10px;
     }
 
     .content-section {
@@ -274,13 +274,8 @@ label {
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
-    .landing-header {
-        position: relative;
-        margin-bottom: 1rem;
-    }
-
     .content-section {
-        padding-top: 60px;
+        padding-top: 80px;
     }
 }
 
