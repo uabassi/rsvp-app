@@ -20,9 +20,11 @@ function App() {
       <header className="landing-header" onClick={handleReset}>
         <h1>Malaika & Umayya</h1>
       </header>
-      <div className="admin-login-button">
-        <a href="/admin">Admin</a>
-      </div>
+      {!guestData && (
+        <div className="admin-login-button">
+          <a href="/admin">Admin</a>
+        </div>
+      )}
       <main className="content-section">
         {!guestData ? (
           <LoginForm setGuestData={setGuestData} />
