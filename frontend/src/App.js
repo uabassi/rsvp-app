@@ -6,18 +6,14 @@ import RsvpForm from './components/RsvpForm';
 import AdminView from './components/AdminView';
 import AdminLogin from './components/AdminLogin';
 import engagementPhoto from './assets/ring.png';
-import engagementPhotoMobile from './assets/ring-mobile.png';
 
 function App() {
   const [guestData, setGuestData] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleReset = () => {
     setGuestData(null);
   };
-
-  const isMobile = window.innerWidth <= 768;
 
   const MainPage = () => (
     <div className="landing-page">
@@ -38,13 +34,9 @@ function App() {
       </main>
       <div className="image-section">
         <img 
-          src={isMobile ? engagementPhotoMobile : engagementPhoto}
+          src={engagementPhoto}
           alt="Engagement" 
-          className={`engagement-photo ${imageLoaded ? 'loaded' : ''}`}
-          onLoad={() => setImageLoaded(true)}
-          loading="eager"
-          decoding="async"
-          fetchpriority="high"
+          className="engagement-photo"
         />
       </div>
     </div>
