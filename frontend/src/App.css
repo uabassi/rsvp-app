@@ -212,6 +212,7 @@ label {
     left: 50% !important;
     transform: translateX(-50%) !important;
     z-index: 999;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .admin-login-button.scrollable {
@@ -220,19 +221,20 @@ label {
     left: 50% !important;
     transform: translateX(-50%) !important;
     z-index: 999;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .admin-login-button a {
     text-decoration: none;
-    color: white;
+    color: #f4ece6;
     padding: 0.75rem 1.5rem;
-    border: 2px solid white;
+    border: 1px solid white;
     border-radius: 4px;
     background-color: transparent;
     transition: all 0.3s ease;
     font-family: 'Montserrat', sans-serif;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
+    /* text-transform: uppercase; */
     font-size: 0.9rem;
     display: block;
 }

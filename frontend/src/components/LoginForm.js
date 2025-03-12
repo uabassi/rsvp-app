@@ -28,7 +28,7 @@ function LoginForm({ setGuestData }) {
 
   return (
     <>
-      <h1 className="rsvp-title">RSVP</h1>
+      <h1 className="rsvp-title"></h1>
       <p className="rsvp-subtitle">Please Enter The Code From Your Invitation</p>
       <form onSubmit={handleSubmit} className="rsvp-form">
         <input

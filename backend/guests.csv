@@ -1,4 +1,10 @@
-name,rsvp_code,has_children,has_spouse,invited_events,children_invited_events
-Abassi Family,TEST123,1,1,"Mehndi,Baraat,Valima",Valima
-Hamza Ashraf,TEST456,0,0,Mehndi,
-Umayya,HELLO123,0,0,Baraat,
+name,rsvp_code,has_children,has_spouse,invited_events,children_invited_events,,,,,,
+Umayya,HELLO123,0,0,"Nikkah, Mehndi, Baraat, Valima",,,,,,,
+Arsam,8UG9MMH4,1,1,"Baraat, Valima",,,,,,,
+Waleed,WWVL0RA0,1,1,"Nikkah, Mehndi, Baraat, Valima",,,,,,,
+Imran,IE0BKZFW,1,1,"Mehndi, Nikkah",,,,,,,
+Tauseef,5QZYZN39,1,1,"Nikkah, Valima",Valima,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,d

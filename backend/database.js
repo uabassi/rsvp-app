@@ -107,9 +107,10 @@ async function initializeDatabase() {
                 COALESCE(r.comment, '') as comments
             FROM guests g
             JOIN families f ON g.family_id = f.id
-            JOIN guest_events ge ON g.id = ge.guest_id
-            JOIN events e ON ge.event_id = e.id
+            LEFT JOIN guest_events ge ON g.id = ge.guest_id
+            LEFT JOIN events e ON ge.event_id = e.id
             LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
+            WHERE ge.guest_id IS NOT NULL
             ORDER BY g.name, e.date;
         `);
 
@@ -226,90 +227,73 @@ function getFormattedRsvpResponses() {
 
 // Update the importGuestsFromCSV function
 async function importGuestsFromCSV(filePath) {
-    const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const records = parse(fileContent, { columns: true, skip_empty_lines: true });
     
-    const records = await new Promise((resolve, reject) => {
-        parse(fileContent, {
-            columns: true,
-            skip_empty_lines: true
-        }, (err, records) => {
-            if (err) reject(err);
-            else resolve(records);
+    try {
+        await pool.query('BEGIN');
+        
+        // Get existing events mapping
+        const eventsResult = await pool.query('SELECT id, name FROM events');
+        const eventMap = {};
+        eventsResult.rows.forEach(event => {
+            // Create multiple variations of event names
+            const variations = [
+                event.name.toLowerCase(),
+                event.name.toLowerCase().replace('h', 'h'),  // mehndi -> mendhi
+                event.name.toLowerCase().replace('h', 'dh')  // mehndi -> mendhi
+            ];
+            variations.forEach(variant => {
+                eventMap[variant] = event.id;
+            });
         });
-    });
 
-    for (const row of records) {
-        try {
-            await pool.query('BEGIN');
-
-            // Insert or get family
+        for (const record of records) {
+            // Create family
             const familyResult = await pool.query(
                 `INSERT INTO families (rsvp_code, has_children, has_spouse)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (rsvp_code) 
-                 DO UPDATE SET 
-                     has_children = $2,
-                     has_spouse = $3
-                 RETURNING id`,
-                [
-                    row.rsvp_code, 
-                    row.has_children === '1', 
-                    row.has_spouse === '1'
-                ]
+                 VALUES ($1, $2, $3) RETURNING id`,
+                [record.rsvp_code, record.has_children === '1', record.has_spouse === '1']
             );
-
-            // Insert guest with ON CONFLICT
+            
+            const familyId = familyResult.rows[0].id;
+            
+            // Create guest
             const guestResult = await pool.query(
                 `INSERT INTO guests (name, family_id)
-                 VALUES ($1, $2)
-                 ON CONFLICT ON CONSTRAINT unique_name_per_family 
-                 DO NOTHING
-                 RETURNING id`,
-                [row.name, familyResult.rows[0].id]
+                 VALUES ($1, $2) RETURNING id`,
+                [record.name, familyId]
             );
-
-            // If guest already exists, get their ID
-            let guestId;
-            if (guestResult.rows.length === 0) {
-                const existingGuest = await pool.query(
-                    'SELECT id FROM guests WHERE name = $1 AND family_id = $2',
-                    [row.name, familyResult.rows[0].id]
-                );
-                guestId = existingGuest.rows[0].id;
-            } else {
-                guestId = guestResult.rows[0].id;
-            }
-
-            // Delete existing guest_events entries
-            await pool.query(
-                'DELETE FROM guest_events WHERE guest_id = $1',
-                [guestId]
-            );
-
-            // Insert event associations
-            const events = row.invited_events.split(',').map(e => e.trim());
-            const children_events = (row.children_invited_events || '').split(',').map(e => e.trim());
-
-            for (const eventName of events) {
-                if (eventName) {
+            
+            const guestId = guestResult.rows[0].id;
+            
+            // Parse invited events and normalize them
+            const invitedEvents = record.invited_events
+                ? record.invited_events.split(',').map(e => e.trim().toLowerCase())
+                : [];
+            
+            // Create guest_events entries
+            for (const eventName of invitedEvents) {
+                const normalizedName = eventName.toLowerCase().trim();
+                const eventId = eventMap[normalizedName];
+                
+                if (eventId) {
+                    console.log(`Adding event ${eventName} (ID: ${eventId}) for guest ${record.name}`);
                     await pool.query(
                         `INSERT INTO guest_events (guest_id, event_id, children_invited)
-                         SELECT $1, id, $2 FROM events WHERE name = $3`,
-                        [
-                            guestId,
-                            children_events.includes(eventName),
-                            eventName
-                        ]
+                         VALUES ($1, $2, $3)`,
+                        [guestId, eventId, false]
                     );
+                } else {
+                    console.warn(`Warning: Event "${eventName}" not found in database`);
                 }
             }
-
-            await pool.query('COMMIT');
-        } catch (error) {
-            await pool.query('ROLLBACK');
-            console.error('Error processing row:', row, error);
-            throw error;
         }
+        
+        await pool.query('COMMIT');
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        throw error;
     }
 }
 

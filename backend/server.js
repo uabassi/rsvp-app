@@ -41,28 +41,30 @@ app.post('/api/login', async (req, res) => {
     
     try {
         const result = await pool.query(
-            `SELECT 
+            `SELECT DISTINCT
                 f.id as family_id, 
                 f.rsvp_code, 
                 f.has_children,
                 f.has_spouse,
                 g.id as guest_id, 
                 g.name,
-                json_agg(
-                    json_build_object(
-                        'id', e.id,
-                        'name', e.name,
-                        'date', e.date,
-                        'children_invited', ge.children_invited
+                (
+                    SELECT json_agg(
+                        json_build_object(
+                            'id', e.id,
+                            'name', e.name,
+                            'date', e.date,
+                            'children_invited', ge2.children_invited
+                        )
                     )
+                    FROM guest_events ge2
+                    JOIN events e ON ge2.event_id = e.id
+                    WHERE ge2.guest_id = g.id
                 ) as events,
                 f.has_spouse as has_spouse
              FROM families f 
              JOIN guests g ON f.id = g.family_id 
-             JOIN guest_events ge ON g.id = ge.guest_id
-             JOIN events e ON ge.event_id = e.id
-             WHERE f.rsvp_code = $1
-             GROUP BY f.id, g.id`,
+             WHERE f.rsvp_code = $1`,
             [rsvpCode]
         );
 
@@ -76,6 +78,11 @@ app.post('/api/login', async (req, res) => {
             ...result.rows[0],
             has_spouse: result.rows[0].has_spouse === '1' || result.rows[0].has_spouse === true
         };
+
+        // Ensure events is never null
+        if (!response.events) {
+            response.events = [];
+        }
 
         res.json(response);
     } catch (err) {
@@ -206,7 +213,24 @@ app.get('/api/event-totals', async (req, res) => {
 // Update the event-guest-list endpoint
 app.get('/api/event-guest-list', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM event_guest_list');
+        const result = await pool.query(`
+            SELECT 
+                g.name as guest_name,
+                f.rsvp_code,
+                json_agg(
+                    json_build_object(
+                        'event_name', e.name,
+                        'event_date', e.date,
+                        'children_invited', ge.children_invited
+                    )
+                ) as events
+            FROM guests g
+            JOIN families f ON g.family_id = f.id
+            LEFT JOIN guest_events ge ON g.id = ge.guest_id
+            LEFT JOIN events e ON ge.event_id = e.id
+            GROUP BY g.id, g.name, f.rsvp_code
+            ORDER BY g.name
+        `);
         res.json(result.rows);
     } catch (err) {
         console.error('Error fetching guest list:', err);

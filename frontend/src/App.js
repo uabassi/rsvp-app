@@ -25,7 +25,7 @@ function App() {
           <>
             <LoginForm setGuestData={setGuestData} />
             <div className="admin-login-button fixed-bottom">
-              <a href="/admin">Admin</a>
+              <a href="/admin">Admin Login</a>
             </div>
           </>
         ) : (
