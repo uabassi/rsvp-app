@@ -25,7 +25,7 @@ async function initializeDatabase() {
             DROP TABLE IF EXISTS families CASCADE;
         `);
 
-        // Create tables with updated schema - removed unique constraint
+        // Create tables with updated schema - removed notes columns
         await pool.query(`
             CREATE TABLE families (
                 id SERIAL PRIMARY KEY,
@@ -39,8 +39,7 @@ async function initializeDatabase() {
             CREATE TABLE guests (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
-                family_id INTEGER REFERENCES families(id),
-                notes TEXT
+                family_id INTEGER REFERENCES families(id)
             );
         `);
 
@@ -56,7 +55,6 @@ async function initializeDatabase() {
             CREATE TABLE guest_events (
                 guest_id INTEGER REFERENCES guests(id),
                 event_id INTEGER REFERENCES events(id),
-                notes TEXT,
                 PRIMARY KEY (guest_id, event_id)
             );
         `);
@@ -67,7 +65,6 @@ async function initializeDatabase() {
                 guest_id INTEGER REFERENCES guests(id),
                 event_id INTEGER REFERENCES events(id),
                 attending BOOLEAN,
-                comment TEXT,
                 UNIQUE(guest_id, event_id)
             );
         `);
@@ -82,30 +79,13 @@ async function initializeDatabase() {
             ON CONFLICT DO NOTHING;
         `);
 
-        // Add initial guest_events data for the Abassi family
-        await pool.query(`
-            WITH family_guests AS (
-                SELECT id FROM guests 
-                WHERE family_id = (
-                    SELECT id FROM families 
-                    WHERE rsvp_code = 'HELLO123'
-                )
-            )
-            INSERT INTO guest_events (guest_id, event_id)
-            SELECT g.id, e.id
-            FROM family_guests g
-            CROSS JOIN events e
-            ON CONFLICT DO NOTHING;
-        `);
-
-        // Create updated views
+        // Create views
         await pool.query(`
             CREATE OR REPLACE VIEW event_guest_list AS
             SELECT 
                 f.family_name,
                 f.rsvp_code,
                 g.name as guest_name,
-                g.notes as guest_notes,
                 e.name as event_name,
                 e.date as event_date,
                 g.id as guest_id,
@@ -113,9 +93,7 @@ async function initializeDatabase() {
                     WHEN r.attending IS NULL THEN 'Pending'
                     WHEN r.attending THEN 'Yes'
                     ELSE 'No'
-                END as attending_status,
-                COALESCE(r.comment, '') as comments,
-                ge.notes as event_notes
+                END as attending_status
             FROM guests g
             JOIN families f ON g.family_id = f.id
             LEFT JOIN guest_events ge ON g.id = ge.guest_id
@@ -125,7 +103,6 @@ async function initializeDatabase() {
             ORDER BY f.family_name, g.name, e.date;
         `);
 
-        // Create views one by one
         await pool.query(`
             CREATE VIEW formatted_rsvp_responses AS
             SELECT 
@@ -136,9 +113,7 @@ async function initializeDatabase() {
                     WHEN r.attending THEN 'Yes'
                     WHEN NOT r.attending THEN 'No'
                     ELSE 'Unknown'
-                END as attending,
-                COALESCE(r.comment, '') as comment,
-                g.notes as guest_notes
+                END as attending
             FROM rsvp_responses r
             JOIN guests g ON r.guest_id = g.id
             JOIN events e ON r.event_id = e.id
@@ -180,15 +155,7 @@ function getFormattedRsvpResponses() {
                     WHEN r.attending = 1 THEN 'Yes'
                     WHEN r.attending = 0 THEN 'No'
                     ELSE 'Unknown'
-                END as attending,
-                CASE 
-                    WHEN r.children_attending = 1 THEN 'Yes'
-                    WHEN r.children_attending = 0 THEN 'No'
-                    ELSE 'N/A'
-                END as children_attending,
-                COALESCE(r.number_of_children, 0) as number_of_children,
-                COALESCE(r.children_comments, '') as children_comments,
-                COALESCE(r.comment, '') as comment
+                END as attending
             FROM rsvp_responses r
             JOIN guests g ON r.guest_id = g.id
             JOIN events e ON r.event_id = e.id
@@ -203,7 +170,7 @@ function getFormattedRsvpResponses() {
     });
 }
 
-// Update the importGuestsFromCSV function
+// Update the importGuestsFromCSV function to remove notes
 async function importGuestsFromCSV(filePath) {
     try {
         const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -241,20 +208,17 @@ async function importGuestsFromCSV(filePath) {
             const normalizedName = event.name.toLowerCase().trim();
             eventMap[normalizedName] = event.id;
         });
-        console.log('Event mapping:', eventMap);
 
         // Track processed families
         const processedFamilies = new Map();
 
         for (const record of records) {
-            console.log('Processing record:', record);
             let familyId;
             
             if (processedFamilies.has(record.rsvp_code)) {
                 familyId = processedFamilies.get(record.rsvp_code);
             } else {
                 const familyMembers = record.family_members.split(',').map(m => m.trim());
-                console.log('Creating new family:', record.family_name, familyMembers);
                 
                 const familyResult = await pool.query(
                     `INSERT INTO families (family_name, rsvp_code, family_members)
@@ -267,12 +231,11 @@ async function importGuestsFromCSV(filePath) {
             }
             
             // Create guest
-            console.log('Creating guest:', record.member_name);
             const guestResult = await pool.query(
-                `INSERT INTO guests (name, family_id, notes)
-                 VALUES ($1, $2, $3)
+                `INSERT INTO guests (name, family_id)
+                 VALUES ($1, $2)
                  RETURNING id`,
-                [record.member_name, familyId, record.notes]
+                [record.member_name, familyId]
             );
             
             const guestId = guestResult.rows[0].id;
@@ -282,20 +245,15 @@ async function importGuestsFromCSV(filePath) {
                 ? record.invited_events.split(',').map(e => e.trim())
                 : [];
             
-            console.log('Processing events for guest:', invitedEvents);
-            
             for (const eventName of invitedEvents) {
                 const normalizedEventName = eventName.toLowerCase().trim();
                 const eventId = eventMap[normalizedEventName];
                 if (eventId) {
-                    console.log(`Adding event ${eventName} (ID: ${eventId}) for guest ${record.member_name}`);
                     await pool.query(
-                        `INSERT INTO guest_events (guest_id, event_id, notes)
-                         VALUES ($1, $2, $3)`,
-                        [guestId, eventId, record.notes]
+                        `INSERT INTO guest_events (guest_id, event_id)
+                         VALUES ($1, $2)`,
+                        [guestId, eventId]
                     );
-                } else {
-                    console.warn(`Warning: Event "${eventName}" not found in database`);
                 }
             }
         }
@@ -309,7 +267,7 @@ async function importGuestsFromCSV(filePath) {
     }
 }
 
-// Export the database connection, initialization function, and the new function
+// Export the functions
 module.exports = { 
     pool, 
     initializeDatabase,

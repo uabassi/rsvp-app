@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import LoginForm from './components/LoginForm';
 import RsvpForm from './components/RsvpForm';
@@ -8,11 +8,33 @@ import AdminLogin from './components/AdminLogin';
 import engagementPhoto from './assets/ring.png';
 
 function App() {
-  const [guestData, setGuestData] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [guestData, setGuestData] = useState(() => {
+    const savedGuestData = localStorage.getItem('guestData');
+    return savedGuestData ? JSON.parse(savedGuestData) : null;
+  });
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('isAdminAuthenticated') === 'true';
+  });
+
+  useEffect(() => {
+    if (guestData) {
+      localStorage.setItem('guestData', JSON.stringify(guestData));
+    }
+  }, [guestData]);
+
+  useEffect(() => {
+    localStorage.setItem('isAdminAuthenticated', isAuthenticated);
+  }, [isAuthenticated]);
 
   const handleReset = () => {
     setGuestData(null);
+    localStorage.removeItem('guestData');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('isAdminAuthenticated');
   };
 
   const MainPage = () => (
@@ -54,7 +76,16 @@ function App() {
         <Route 
           path="/admin" 
           element={
-            isAuthenticated ? <AdminView /> : <AdminLogin setIsAuthenticated={setIsAuthenticated} />
+            isAuthenticated ? (
+              <div>
+                <AdminView />
+                <button onClick={handleLogout} className="admin-logout-button">
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <AdminLogin setIsAuthenticated={setIsAuthenticated} />
+            )
           } 
         />
       </Routes>

@@ -1,10 +1,6 @@
-family_name,rsvp_code,family_members,member_name,invited_events,notes,,,,,,
-Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Mr. Abassi,"Nikkah, Mehndi, Baraat, Valima","Asalamualykum Abassi Family, with hearts full of gratitude to Allah (SWT), we are delighted to invite you to join us in celebrating the blessed union of Umayya Abassi and Malaika Kiyani. Please kindly RSVP to the events we have invited each of your family members to in sha Allah",,,,,,
-Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Mrs. Abassi,"Baraat, Valima",,,,,,,
-Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Umayya,"Nikkah, Mehndi, Baraat, Valima",,,,,,,
-Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Arsam,"Mehndi, Nikkah",,,,,,,
-Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Waleed,Nikkah,,,,,,,
-,,,,,,,,,,,
-,,,,,,,,,,,
-,,,,,,,,,,,
-,,,,,,,,,,,d
+family_name,rsvp_code,family_members,member_name,invited_events
+Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Mr. Abassi,"Nikkah, Mehndi, Baraat, Valima"
+Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Mrs. Abassi,"Baraat, Valima"
+Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Umayya,"Nikkah, Mehndi, Baraat, Valima"
+Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Arsam,"Nikkah, Mehndi"
+Abassi Family,HELLO123,"Mr. Abassi, Mrs. Abassi, Arsam, Umayya, Waleed",Waleed,Nikkah

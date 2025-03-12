@@ -41,11 +41,10 @@ function AdminView() {
         if (window.confirm('Are you sure you want to delete this RSVP response? The guest can still RSVP again.')) {
             try {
                 await axios.delete(`${config.apiUrl}/api/rsvp/${guestId}`);
-                // Refresh the data
-                fetchData();
+                await fetchData();
             } catch (error) {
                 console.error('Error deleting response:', error);
-                alert('Failed to delete response');
+                alert('Failed to delete response: ' + error.response?.data?.error || error.message);
             }
         }
     };
@@ -54,11 +53,22 @@ function AdminView() {
         if (window.confirm('WARNING: This will completely remove this guest from the database. They will not be able to RSVP without being re-added. Continue?')) {
             try {
                 await axios.delete(`${config.apiUrl}/api/guest/${guestId}`);
-                // Refresh the data
-                fetchData();
+                await fetchData();
             } catch (error) {
                 console.error('Error deleting guest:', error);
-                alert('Failed to delete guest');
+                alert('Failed to delete guest: ' + error.response?.data?.error || error.message);
+            }
+        }
+    };
+
+    const handleDeleteFamily = async (familyId) => {
+        if (window.confirm('WARNING: This will completely remove this entire family and all their members from the database. This cannot be undone. Continue?')) {
+            try {
+                await axios.delete(`${config.apiUrl}/api/family/${familyId}`);
+                await fetchData();
+            } catch (error) {
+                console.error('Error deleting family:', error);
+                alert('Failed to delete family: ' + error.response?.data?.error || error.message);
             }
         }
     };
@@ -89,13 +99,16 @@ function AdminView() {
         });
     };
 
-    // Group guests by family
+    // Group guests by family and store family IDs
     const groupedGuests = guestList.reduce((acc, guest) => {
         const familyName = guest.family_name;
         if (!acc[familyName]) {
-            acc[familyName] = [];
+            acc[familyName] = {
+                guests: [],
+                familyId: guest.family_id // Store the family ID
+            };
         }
-        acc[familyName].push(guest);
+        acc[familyName].guests.push(guest);
         return acc;
     }, {});
 
@@ -147,16 +160,21 @@ function AdminView() {
             <div className="admin-section">
                 <h2>Guest List by Family</h2>
                 <div className="family-list">
-                    {Object.entries(groupedGuests).map(([familyName, familyGuests]) => (
+                    {Object.entries(groupedGuests).map(([familyName, familyData]) => (
                         <div key={familyName} className="family-section">
-                            <div 
-                                className="family-header"
-                                onClick={() => toggleFamily(familyName)}
-                            >
-                                <h3>{familyName}</h3>
-                                <span className="expand-icon">
-                                    {expandedFamilies.has(familyName) ? '▼' : '▶'}
-                                </span>
+                            <div className="family-header">
+                                <div className="family-title" onClick={() => toggleFamily(familyName)}>
+                                    <h3>{familyName}</h3>
+                                    <span className="expand-icon">
+                                        {expandedFamilies.has(familyName) ? '▼' : '▶'}
+                                    </span>
+                                </div>
+                                <button 
+                                    onClick={() => handleDeleteFamily(familyData.familyId)}
+                                    className="delete-family-button"
+                                >
+                                    Delete Family
+                                </button>
                             </div>
                             {expandedFamilies.has(familyName) && (
                                 <table className="family-details">
@@ -169,7 +187,7 @@ function AdminView() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {familyGuests.map((guest, index) => (
+                                        {familyData.guests.map((guest, index) => (
                                             <tr key={`${guest.guest_id}-${index}`}>
                                                 <td>{guest.guest_name}</td>
                                                 <td>{guest.event_name} ({formatDate(guest.event_date)})</td>
@@ -185,7 +203,7 @@ function AdminView() {
                                                         onClick={() => handleDeleteGuest(guest.guest_id)}
                                                         className="remove-button"
                                                     >
-                                                        Remove from DB
+                                                        Remove Guest
                                                     </button>
                                                 </td>
                                             </tr>

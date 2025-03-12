@@ -51,14 +51,12 @@ app.post('/api/login', async (req, res) => {
                     json_build_object(
                         'guest_id', g.id,
                         'name', g.name,
-                        'notes', g.notes,
                         'events', (
                             SELECT json_agg(
                                 json_build_object(
                                     'id', e.id,
                                     'name', e.name,
-                                    'date', e.date,
-                                    'notes', ge.notes
+                                    'date', e.date
                                 )
                             )
                             FROM guest_events ge
@@ -99,33 +97,56 @@ app.post('/api/rsvp', async (req, res) => {
     const { responses } = req.body;
     
     try {
+        // Validate input
+        if (!responses || !Array.isArray(responses)) {
+            console.error('Invalid request body:', req.body);
+            return res.status(400).json({ error: 'Invalid request format' });
+        }
+
+        console.log('Received RSVP responses:', responses);
+        
         await pool.query('BEGIN');
 
         // Insert new responses
         for (const response of responses) {
-            console.log('Processing response:', response);
+            if (!response.guest_id || !response.event_id || response.attending === undefined) {
+                console.error('Invalid response object:', response);
+                throw new Error('Invalid response data');
+            }
+
+            console.log('Processing response:', {
+                guest_id: response.guest_id,
+                event_id: response.event_id,
+                attending: response.attending
+            });
             
-            await pool.query(
+            const result = await pool.query(
                 `INSERT INTO rsvp_responses (guest_id, event_id, attending)
                  VALUES ($1, $2, $3)
                  ON CONFLICT (guest_id, event_id) 
-                 DO UPDATE SET attending = $3`,
+                 DO UPDATE SET attending = $3
+                 RETURNING id`,
                 [
                     response.guest_id,
                     response.event_id,
                     response.attending
                 ]
             );
+            
+            console.log('Response saved with ID:', result.rows[0].id);
         }
 
         await pool.query('COMMIT');
+        console.log('All responses saved successfully');
         res.json({ message: 'RSVP updated successfully' });
     } catch (err) {
         await pool.query('ROLLBACK');
         console.error('Error saving RSVP:', err);
+        console.error('Stack trace:', err.stack);
         res.status(500).json({ 
             error: 'Error saving RSVP responses',
-            details: err.message 
+            details: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
     }
 });
@@ -225,6 +246,7 @@ app.get('/api/event-guest-list', async (req, res) => {
             SELECT 
                 g.id as guest_id,
                 g.name as guest_name,
+                f.id as family_id,
                 f.family_name,
                 f.rsvp_code,
                 e.name as event_name,
@@ -233,8 +255,7 @@ app.get('/api/event-guest-list', async (req, res) => {
                     WHEN r.attending IS NULL THEN 'Pending'
                     WHEN r.attending THEN 'Will Attend'
                     ELSE 'Cannot Attend'
-                END as attending_status,
-                r.comment as comments
+                END as attending_status
             FROM guests g
             JOIN families f ON g.family_id = f.id
             LEFT JOIN guest_events ge ON g.id = ge.guest_id
@@ -302,7 +323,7 @@ app.delete('/api/rsvp/:guestId', async (req, res) => {
         
         await pool.query('BEGIN');
         
-        // Only delete RSVP responses
+        // Delete RSVP responses for this guest
         await pool.query(
             'DELETE FROM rsvp_responses WHERE guest_id = $1',
             [guestId]
@@ -318,16 +339,19 @@ app.delete('/api/rsvp/:guestId', async (req, res) => {
     }
 });
 
-// Add this new endpoint for completely removing a guest
+// Add this new endpoint for completely removing a guest and their family
 app.delete('/api/guest/:guestId', async (req, res) => {
     try {
         const { guestId } = req.params;
         
         await pool.query('BEGIN');
         
-        // Get the family_id first
+        // Get the family_id and check if this is the only guest in the family
         const familyResult = await pool.query(
-            'SELECT family_id FROM guests WHERE id = $1',
+            `SELECT g.family_id, 
+                    (SELECT COUNT(*) FROM guests WHERE family_id = g.family_id) as family_size
+             FROM guests g 
+             WHERE g.id = $1`,
             [guestId]
         );
         
@@ -335,21 +359,69 @@ app.delete('/api/guest/:guestId', async (req, res) => {
             throw new Error('Guest not found');
         }
         
-        const familyId = familyResult.rows[0].family_id;
+        const { family_id, family_size } = familyResult.rows[0];
         
         // Delete in correct order to handle foreign key constraints
         await pool.query('DELETE FROM rsvp_responses WHERE guest_id = $1', [guestId]);
         await pool.query('DELETE FROM guest_events WHERE guest_id = $1', [guestId]);
         await pool.query('DELETE FROM guests WHERE id = $1', [guestId]);
+        
+        // If this was the last guest in the family, delete the family too
+        if (family_size <= 1) {
+            await pool.query('DELETE FROM families WHERE id = $1', [family_id]);
+        }
+        
+        await pool.query('COMMIT');
+        
+        res.json({ 
+            message: 'Guest removed from database successfully',
+            familyDeleted: family_size <= 1
+        });
+    } catch (err) {
+        await pool.query('ROLLBACK');
+        console.error('Error removing guest:', err);
+        res.status(500).json({ 
+            error: 'Error removing guest from database',
+            details: err.message 
+        });
+    }
+});
+
+// Add new endpoint for deleting an entire family
+app.delete('/api/family/:familyId', async (req, res) => {
+    try {
+        const { familyId } = req.params;
+        
+        await pool.query('BEGIN');
+        
+        // Get all guests in this family
+        const guestsResult = await pool.query(
+            'SELECT id FROM guests WHERE family_id = $1',
+            [familyId]
+        );
+        
+        // Delete all related data for each guest
+        for (const guest of guestsResult.rows) {
+            await pool.query('DELETE FROM rsvp_responses WHERE guest_id = $1', [guest.id]);
+            await pool.query('DELETE FROM guest_events WHERE guest_id = $1', [guest.id]);
+        }
+        
+        // Delete all guests in the family
+        await pool.query('DELETE FROM guests WHERE family_id = $1', [familyId]);
+        
+        // Finally delete the family
         await pool.query('DELETE FROM families WHERE id = $1', [familyId]);
         
         await pool.query('COMMIT');
         
-        res.json({ message: 'Guest completely removed from database' });
+        res.json({ message: 'Family and all related data deleted successfully' });
     } catch (err) {
         await pool.query('ROLLBACK');
-        console.error('Error removing guest:', err);
-        res.status(500).json({ error: 'Error removing guest from database' });
+        console.error('Error deleting family:', err);
+        res.status(500).json({ 
+            error: 'Error deleting family',
+            details: err.message 
+        });
     }
 });
 

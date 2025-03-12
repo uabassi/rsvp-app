@@ -302,4 +302,24 @@ label {
     margin: 2rem 0;
     font-weight: 300;
     color: #f4ece6;
+}
+
+.admin-logout-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease;
+    z-index: 1000;
+}
+
+.admin-logout-button:hover {
+    background-color: #c82333;
 } 
