@@ -25,13 +25,13 @@ async function initializeDatabase() {
             DROP TABLE IF EXISTS families CASCADE;
         `);
 
-        // Create tables one by one
+        // Create tables with updated schema - removed unique constraint
         await pool.query(`
             CREATE TABLE families (
                 id SERIAL PRIMARY KEY,
+                family_name TEXT NOT NULL,
                 rsvp_code TEXT UNIQUE NOT NULL,
-                has_children BOOLEAN DEFAULT false,
-                has_spouse BOOLEAN DEFAULT false
+                family_members TEXT[]
             );
         `);
 
@@ -40,7 +40,7 @@ async function initializeDatabase() {
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 family_id INTEGER REFERENCES families(id),
-                CONSTRAINT unique_name_per_family UNIQUE (name, family_id)
+                notes TEXT
             );
         `);
 
@@ -56,7 +56,7 @@ async function initializeDatabase() {
             CREATE TABLE guest_events (
                 guest_id INTEGER REFERENCES guests(id),
                 event_id INTEGER REFERENCES events(id),
-                children_invited BOOLEAN DEFAULT false,
+                notes TEXT,
                 PRIMARY KEY (guest_id, event_id)
             );
         `);
@@ -67,51 +67,62 @@ async function initializeDatabase() {
                 guest_id INTEGER REFERENCES guests(id),
                 event_id INTEGER REFERENCES events(id),
                 attending BOOLEAN,
-                children_attending BOOLEAN,
-                number_of_children INTEGER,
-                children_comments TEXT,
-                comment TEXT
+                comment TEXT,
+                UNIQUE(guest_id, event_id)
             );
         `);
 
-        // Insert only the events
+        // Insert events
         await pool.query(`
             INSERT INTO events (name, date) VALUES 
-                ('Nikkah', '2025-06-13'),
-                ('Mehndi', '2025-06-19'),
-                ('Baraat', '2025-06-21'),
-                ('Valima', '2025-06-22')
+                ('Nikkah', '06-13-2025'),
+                ('Mehndi', '06-19-2025'),
+                ('Baraat', '06-21-2025'),
+                ('Valima', '06-22-2025')
             ON CONFLICT DO NOTHING;
         `);
 
-        // Create the event_guest_list view
+        // Add initial guest_events data for the Abassi family
+        await pool.query(`
+            WITH family_guests AS (
+                SELECT id FROM guests 
+                WHERE family_id = (
+                    SELECT id FROM families 
+                    WHERE rsvp_code = 'HELLO123'
+                )
+            )
+            INSERT INTO guest_events (guest_id, event_id)
+            SELECT g.id, e.id
+            FROM family_guests g
+            CROSS JOIN events e
+            ON CONFLICT DO NOTHING;
+        `);
+
+        // Create updated views
         await pool.query(`
             CREATE OR REPLACE VIEW event_guest_list AS
             SELECT 
-                g.name as guest_name,
+                f.family_name,
                 f.rsvp_code,
+                g.name as guest_name,
+                g.notes as guest_notes,
                 e.name as event_name,
+                e.date as event_date,
                 g.id as guest_id,
                 CASE 
                     WHEN r.attending IS NULL THEN 'Pending'
                     WHEN r.attending THEN 'Yes'
                     ELSE 'No'
                 END as attending_status,
-                CASE 
-                    WHEN f.has_spouse AND r.attending THEN 2
-                    WHEN r.attending THEN 1
-                    ELSE 0
-                END as adult_count,
-                COALESCE(r.number_of_children, 0) as children_count,
-                COALESCE(r.children_comments, '') as children_details,
-                COALESCE(r.comment, '') as comments
+                COALESCE(r.comment, '') as comments,
+                ge.notes as event_notes
             FROM guests g
             JOIN families f ON g.family_id = f.id
             LEFT JOIN guest_events ge ON g.id = ge.guest_id
             LEFT JOIN events e ON ge.event_id = e.id
             LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
             WHERE ge.guest_id IS NOT NULL
-            ORDER BY g.name, e.date;
+            ORDER BY f.family_name, g.name, e.date;
         `);
 
         // Create views one by one
@@ -126,14 +137,8 @@ async function initializeDatabase() {
                     WHEN NOT r.attending THEN 'No'
                     ELSE 'Unknown'
                 END as attending,
-                CASE 
-                    WHEN r.children_attending THEN 'Yes'
-                    WHEN NOT r.children_attending THEN 'No'
-                    ELSE 'N/A'
-                END as children_attending,
-                COALESCE(r.number_of_children, 0) as number_of_children,
-                COALESCE(r.children_comments, '') as children_comments,
-                COALESCE(r.comment, '') as comment
+                COALESCE(r.comment, '') as comment,
+                g.notes as guest_notes
             FROM rsvp_responses r
             JOIN guests g ON r.guest_id = g.id
             JOIN events e ON r.event_id = e.id
@@ -146,42 +151,15 @@ async function initializeDatabase() {
                 e.id as event_id,
                 e.name as event_name,
                 e.date as event_date,
-                COALESCE((
-                    SELECT COUNT(DISTINCT g2.id) + 
-                    SUM(CASE WHEN f2.has_spouse THEN 1 ELSE 0 END)
-                    FROM guests g2
-                    JOIN families f2 ON g2.family_id = f2.id
-                    JOIN guest_events ge2 ON g2.id = ge2.guest_id
-                    LEFT JOIN rsvp_responses r2 ON g2.id = r2.guest_id AND e.id = r2.event_id
-                    WHERE ge2.event_id = e.id AND r2.attending = true
-                ), 0) as total_adults,
-                COALESCE((
-                    SELECT SUM(
-                        CASE 
-                            WHEN r3.children_attending THEN COALESCE(r3.number_of_children, 0)
-                            ELSE 0 
-                        END
-                    )
-                    FROM rsvp_responses r3
-                    WHERE r3.event_id = e.id AND r3.attending = true
-                ), 0) as total_children,
-                COALESCE((
-                    SELECT 
-                        (COUNT(DISTINCT g2.id) + 
-                        SUM(CASE WHEN f2.has_spouse THEN 1 ELSE 0 END)) +
-                        SUM(
-                            CASE 
-                                WHEN r2.children_attending THEN COALESCE(r2.number_of_children, 0)
-                                ELSE 0 
-                            END
-                        )
-                    FROM guests g2
-                    JOIN families f2 ON g2.family_id = f2.id
-                    JOIN guest_events ge2 ON g2.id = ge2.guest_id
-                    LEFT JOIN rsvp_responses r2 ON g2.id = r2.guest_id AND e.id = r2.event_id
-                    WHERE ge2.event_id = e.id AND r2.attending = true
-                ), 0) as total_attendees
-            FROM events e;
+                COUNT(DISTINCT CASE WHEN r.attending = true THEN g.id END) as total_attendees,
+                COALESCE(string_agg(DISTINCT g.name, ', ' ORDER BY g.name) 
+                    FILTER (WHERE r.attending = true), '') as attending_guests
+            FROM events e
+            LEFT JOIN guest_events ge ON e.id = ge.event_id
+            LEFT JOIN guests g ON ge.guest_id = g.id
+            LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
+            GROUP BY e.id, e.name, e.date
+            ORDER BY e.date;
         `);
 
     } catch (err) {
@@ -227,62 +205,94 @@ function getFormattedRsvpResponses() {
 
 // Update the importGuestsFromCSV function
 async function importGuestsFromCSV(filePath) {
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const records = parse(fileContent, { columns: true, skip_empty_lines: true });
-    
     try {
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        console.log('File content read successfully');
+        
+        const parseAsync = (content) => {
+            return new Promise((resolve, reject) => {
+                parse(content, {
+                    columns: true,
+                    skip_empty_lines: true,
+                    trim: true,
+                    relaxColumnCount: true
+                }, (err, records) => {
+                    if (err) reject(err);
+                    else resolve(records);
+                });
+            });
+        };
+
+        const records = await parseAsync(fileContent);
+        console.log('CSV parsed successfully, found records:', records.length);
+        
         await pool.query('BEGIN');
+        
+        // Clear existing data
+        await pool.query('DELETE FROM rsvp_responses');
+        await pool.query('DELETE FROM guest_events');
+        await pool.query('DELETE FROM guests');
+        await pool.query('DELETE FROM families');
         
         // Get existing events mapping
         const eventsResult = await pool.query('SELECT id, name FROM events');
         const eventMap = {};
         eventsResult.rows.forEach(event => {
-            // Create multiple variations of event names
-            const variations = [
-                event.name.toLowerCase(),
-                event.name.toLowerCase().replace('h', 'h'),  // mehndi -> mendhi
-                event.name.toLowerCase().replace('h', 'dh')  // mehndi -> mendhi
-            ];
-            variations.forEach(variant => {
-                eventMap[variant] = event.id;
-            });
+            const normalizedName = event.name.toLowerCase().trim();
+            eventMap[normalizedName] = event.id;
         });
+        console.log('Event mapping:', eventMap);
+
+        // Track processed families
+        const processedFamilies = new Map();
 
         for (const record of records) {
-            // Create family
-            const familyResult = await pool.query(
-                `INSERT INTO families (rsvp_code, has_children, has_spouse)
-                 VALUES ($1, $2, $3) RETURNING id`,
-                [record.rsvp_code, record.has_children === '1', record.has_spouse === '1']
-            );
+            console.log('Processing record:', record);
+            let familyId;
             
-            const familyId = familyResult.rows[0].id;
+            if (processedFamilies.has(record.rsvp_code)) {
+                familyId = processedFamilies.get(record.rsvp_code);
+            } else {
+                const familyMembers = record.family_members.split(',').map(m => m.trim());
+                console.log('Creating new family:', record.family_name, familyMembers);
+                
+                const familyResult = await pool.query(
+                    `INSERT INTO families (family_name, rsvp_code, family_members)
+                     VALUES ($1, $2, $3)
+                     RETURNING id`,
+                    [record.family_name, record.rsvp_code, familyMembers]
+                );
+                familyId = familyResult.rows[0].id;
+                processedFamilies.set(record.rsvp_code, familyId);
+            }
             
             // Create guest
+            console.log('Creating guest:', record.member_name);
             const guestResult = await pool.query(
-                `INSERT INTO guests (name, family_id)
-                 VALUES ($1, $2) RETURNING id`,
-                [record.name, familyId]
+                `INSERT INTO guests (name, family_id, notes)
+                 VALUES ($1, $2, $3)
+                 RETURNING id`,
+                [record.member_name, familyId, record.notes]
             );
             
             const guestId = guestResult.rows[0].id;
             
-            // Parse invited events and normalize them
+            // Process events
             const invitedEvents = record.invited_events
-                ? record.invited_events.split(',').map(e => e.trim().toLowerCase())
+                ? record.invited_events.split(',').map(e => e.trim())
                 : [];
             
-            // Create guest_events entries
+            console.log('Processing events for guest:', invitedEvents);
+            
             for (const eventName of invitedEvents) {
-                const normalizedName = eventName.toLowerCase().trim();
-                const eventId = eventMap[normalizedName];
-                
+                const normalizedEventName = eventName.toLowerCase().trim();
+                const eventId = eventMap[normalizedEventName];
                 if (eventId) {
-                    console.log(`Adding event ${eventName} (ID: ${eventId}) for guest ${record.name}`);
+                    console.log(`Adding event ${eventName} (ID: ${eventId}) for guest ${record.member_name}`);
                     await pool.query(
-                        `INSERT INTO guest_events (guest_id, event_id, children_invited)
+                        `INSERT INTO guest_events (guest_id, event_id, notes)
                          VALUES ($1, $2, $3)`,
-                        [guestId, eventId, false]
+                        [guestId, eventId, record.notes]
                     );
                 } else {
                     console.warn(`Warning: Event "${eventName}" not found in database`);
@@ -291,7 +301,9 @@ async function importGuestsFromCSV(filePath) {
         }
         
         await pool.query('COMMIT');
+        console.log('Import completed successfully');
     } catch (error) {
+        console.error('Import error:', error);
         await pool.query('ROLLBACK');
         throw error;
     }

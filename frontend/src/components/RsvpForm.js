@@ -1,53 +1,87 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
-import './RsvpForm.css';  // Add this import
+import './RsvpForm.css';
 import config from '../config';
-
 
 function RsvpForm({ guestData }) {
   console.log('Initial Guest Data:', guestData);
-  console.log('API URL:', config.apiUrl);
   
-  // State to store responses for each event
-  const [responses, setResponses] = useState(() => {
-    const initialResponses = guestData.events.map(event => ({
-      event_id: event.id,
-      attending: true,
-      comment: '',
-      children_attending: false,
-      number_of_children: 0,
-      children_comments: ''
-    }));
-    console.log('Initial responses:', initialResponses);
+  // State to store responses for each family member
+  const [familyResponses, setFamilyResponses] = useState(() => {
+    // Initialize responses for each family member with null attendance
+    const initialResponses = {};
+    
+    guestData.family_guests.forEach(guest => {
+      initialResponses[guest.name] = {};
+      if (guest.events) {
+        guest.events.forEach(event => {
+          initialResponses[guest.name][event.id] = {
+            attending: null, // Initialize as null instead of false
+            guest_id: guest.guest_id
+          };
+        });
+      }
+    });
+    
     return initialResponses;
   });
-
-  // Log responses whenever they change
-  useEffect(() => {
-    console.log('Responses updated:', responses);
-  }, [responses]);
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
-  // Handle change for a specific event response
-  const handleResponseChange = (index, field, value) => {
-    console.log('Changing response:', { index, field, value }); // Add logging
-    const newResponses = [...responses];
-    newResponses[index] = {
-      ...newResponses[index],
-      [field]: value
-    };
-    console.log('New responses:', newResponses); // Add logging
-    setResponses(newResponses);
+  const handleResponseChange = (memberName, eventId, field, value) => {
+    setFamilyResponses(prev => ({
+      ...prev,
+      [memberName]: {
+        ...prev[memberName],
+        [eventId]: {
+          ...prev[memberName][eventId],
+          [field]: value,
+          guest_id: prev[memberName][eventId].guest_id
+        }
+      }
+    }));
+  };
+
+  const validateResponses = () => {
+    let missingResponses = [];
+    
+    Object.entries(familyResponses).forEach(([memberName, memberEvents]) => {
+      Object.entries(memberEvents).forEach(([eventId, response]) => {
+        if (response.attending === null) {
+          const guest = guestData.family_guests.find(g => g.name === memberName);
+          const event = guest.events.find(e => e.id === parseInt(eventId));
+          missingResponses.push(`${memberName} - ${event.name}`);
+        }
+      });
+    });
+    
+    return missingResponses;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check for missing responses
+    const missingResponses = validateResponses();
+    if (missingResponses.length > 0) {
+      setError(`Please respond to all events:\n${missingResponses.join('\n')}`);
+      return;
+    }
+
     try {
-      console.log('Submitting to:', `${config.apiUrl}/api/rsvp`);
+      const responses = [];
+      Object.entries(familyResponses).forEach(([memberName, memberEvents]) => {
+        Object.entries(memberEvents).forEach(([eventId, response]) => {
+          responses.push({
+            guest_id: response.guest_id,
+            event_id: parseInt(eventId),
+            attending: response.attending
+          });
+        });
+      });
+
       await axios.post(`${config.apiUrl}/api/rsvp`, {
-        guestId: guestData.guest_id,
         responses
       });
       setSubmitted(true);
@@ -58,99 +92,76 @@ function RsvpForm({ guestData }) {
     }
   };
 
+  // Add this function after the imports and before the RsvpForm component
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   if (submitted) {
     return (
       <div className="thank-you-container">
         <h2 className="thank-you-title">Thank you!</h2>
-        <p className="thank-you-text">Your RSVP has been submitted successfully.</p>
+        <p className="thank-you-text">Your family's RSVP has been submitted successfully.</p>
       </div>
     );
   }
 
   return (
     <div className="rsvp-content">
-      <h2 className="rsvp-form-title">Submit Your RSVP</h2>
-      <p className="rsvp-form-subtitle">Assalamu 'alaykum, {guestData.name}!</p>
+      <h2 className="rsvp-form-title">Family RSVP</h2>
+      {/* <p className="rsvp-form-subtitle">Assalamu 'alaykum, {guestData.family_name} Family!</p> */}
+      <p className="family-note">Asalamualykum {guestData.family_name} Family, with hearts full of gratitude to Allah (SWT), we are delighted to invite you to join us in celebrating the blessed union of Umayya Abassi and Malaika Kiyani. Please kindly RSVP to the events we have invited each of your family members to in sha Allah</p>
+      
       <form onSubmit={handleSubmit} className="rsvp-form">
-        {guestData.events.map((event, index) => (
-          <div key={event.id} className="event-card">
-            <h3 className="event-title">{event.name} | {event.date}</h3>
-            <div className="form-group">
-              <label className="form-label">
-                {guestData.has_spouse === '1' || guestData.has_spouse === true
-                  ? "Will you and your spouse be attending?" 
-                  : "Will you be attending?"}
-              </label>
-              <select
-                className="form-select"
-                value={responses[index].attending ? "1" : "0"}
-                onChange={(e) => handleResponseChange(index, 'attending', e.target.value === "1")}
-              >
-                <option value="1">
-                  {guestData.has_spouse === '1' || guestData.has_spouse === true
-                    ? "Yes, we will attend" 
-                    : "Yes, I will attend"}
-                </option>
-                <option value="0">
-                  {guestData.has_spouse === '1' || guestData.has_spouse === true
-                    ? "No, we cannot attend" 
-                    : "No, I cannot attend"}
-                </option>
-              </select>
+        {guestData.family_guests.map((guest, index) => (
+          <div key={guest.guest_id} className="guest-section">
+            <div className="guest-header">
+              <h3 className="guest-name">Family Member: {guest.name}</h3>
             </div>
-
-            {event.children_invited && responses[index].attending && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">Number of children attending:</label>
-                  <select
-                    className="form-select"
-                    value={responses[index].number_of_children || 0}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value, 10);
-                      const newResponses = [...responses];
-                      newResponses[index] = {
-                        ...newResponses[index],
-                        number_of_children: value,
-                        children_attending: value > 0
-                      };
-                      setResponses(newResponses);
-                    }}
-                  >
-                    {[...Array(11)].map((_, i) => (
-                      <option key={i} value={i}>
-                        {i} {i === 1 ? 'child' : 'children'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {(responses[index].number_of_children || 0) > 0 && (
-                  <div className="form-group">
-                    <label className="form-label">Children's details/comments:</label>
-                    <textarea
-                      className="form-textarea"
-                      value={responses[index].children_comments || ''}
-                      onChange={(e) => handleResponseChange(index, 'children_comments', e.target.value)}
-                      placeholder="Please add the names of the children attending"
+            
+            {guest.events && guest.events.map(event => (
+              <div key={`${guest.guest_id}-${event.id}`} className="event-card">
+                <h4 className="event-title">
+                  {event.name} - {formatDate(event.date)}
+                </h4>
+                
+                <div className="form-group attendance-options">
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      name={`attendance-${guest.guest_id}-${event.id}`}
+                      checked={familyResponses[guest.name]?.[event.id]?.attending === true}
+                      onChange={() => handleResponseChange(guest.name, event.id, 'attending', true)}
                     />
-                  </div>
-                )}
-              </>
-            )}
-
-            <div className="form-group">
-              <label className="form-label">Comments for {event.name}:</label>
-              <textarea
-                className="form-textarea"
-                value={responses[index].comment}
-                onChange={(e) => handleResponseChange(index, 'comment', e.target.value)}
-                placeholder={`Add any comments for ${event.name}...`}
-              />
-            </div>
+                    Will Attend
+                  </label>
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      name={`attendance-${guest.guest_id}-${event.id}`}
+                      checked={familyResponses[guest.name]?.[event.id]?.attending === false}
+                      onChange={() => handleResponseChange(guest.name, event.id, 'attending', false)}
+                    />
+                    Cannot Attend
+                  </label>
+                </div>
+              </div>
+            ))}
+            {index < guestData.family_guests.length - 1 && <div className="guest-divider" />}
           </div>
         ))}
-        <button type="submit" className="reply-button">Submit RSVP</button>
-        {error && <p className="error-message">{error}</p>}
+        
+        <button type="submit" className="reply-button">Submit Family RSVP</button>
+        {error && <p className="error-message">{error.split('\n').map((line, i) => (
+          <React.Fragment key={i}>
+            {line}<br/>
+          </React.Fragment>
+        ))}</p>}
       </form>
     </div>
   );

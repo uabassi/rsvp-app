@@ -40,49 +40,52 @@ app.post('/api/login', async (req, res) => {
     const { rsvpCode } = req.body;
     
     try {
-        const result = await pool.query(
-            `SELECT DISTINCT
-                f.id as family_id, 
-                f.rsvp_code, 
-                f.has_children,
-                f.has_spouse,
-                g.id as guest_id, 
-                g.name,
-                (
-                    SELECT json_agg(
-                        json_build_object(
-                            'id', e.id,
-                            'name', e.name,
-                            'date', e.date,
-                            'children_invited', ge2.children_invited
+        // Get the family and its members
+        const familyResult = await pool.query(
+            `SELECT 
+                f.id as family_id,
+                f.family_name,
+                f.rsvp_code,
+                f.family_members,
+                json_agg(
+                    json_build_object(
+                        'guest_id', g.id,
+                        'name', g.name,
+                        'notes', g.notes,
+                        'events', (
+                            SELECT json_agg(
+                                json_build_object(
+                                    'id', e.id,
+                                    'name', e.name,
+                                    'date', e.date,
+                                    'notes', ge.notes
+                                )
+                            )
+                            FROM guest_events ge
+                            JOIN events e ON ge.event_id = e.id
+                            WHERE ge.guest_id = g.id
                         )
                     )
-                    FROM guest_events ge2
-                    JOIN events e ON ge2.event_id = e.id
-                    WHERE ge2.guest_id = g.id
-                ) as events,
-                f.has_spouse as has_spouse
-             FROM families f 
-             JOIN guests g ON f.id = g.family_id 
-             WHERE f.rsvp_code = $1`,
+                ) as family_guests
+            FROM families f
+            JOIN guests g ON f.id = g.family_id
+            WHERE f.rsvp_code = $1
+            GROUP BY f.id, f.family_name, f.rsvp_code, f.family_members`,
             [rsvpCode]
         );
 
-        if (result.rows.length === 0) {
-            res.status(404).json({ error: 'Invalid RSVP code' });
-            return;
+        if (familyResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Invalid RSVP code' });
         }
 
-        // Ensure has_spouse is explicitly included in the response
+        // Format the response
         const response = {
-            ...result.rows[0],
-            has_spouse: result.rows[0].has_spouse === '1' || result.rows[0].has_spouse === true
+            ...familyResult.rows[0],
+            family_guests: familyResult.rows[0].family_guests.map(guest => ({
+                ...guest,
+                events: guest.events || []
+            }))
         };
-
-        // Ensure events is never null
-        if (!response.events) {
-            response.events = [];
-        }
 
         res.json(response);
     } catch (err) {
@@ -93,37 +96,24 @@ app.post('/api/login', async (req, res) => {
 
 // Modified RSVP endpoint
 app.post('/api/rsvp', async (req, res) => {
-    const { guestId, responses } = req.body;
+    const { responses } = req.body;
     
     try {
         await pool.query('BEGIN');
 
-        // Delete existing responses
-        await pool.query(
-            'DELETE FROM rsvp_responses WHERE guest_id = $1',
-            [guestId]
-        );
-
         // Insert new responses
         for (const response of responses) {
+            console.log('Processing response:', response);
+            
             await pool.query(
-                `INSERT INTO rsvp_responses (
-                    guest_id, 
-                    event_id, 
-                    attending, 
-                    children_attending,
-                    number_of_children,
-                    children_comments,
-                    comment
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                `INSERT INTO rsvp_responses (guest_id, event_id, attending)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (guest_id, event_id) 
+                 DO UPDATE SET attending = $3`,
                 [
-                    guestId,
+                    response.guest_id,
                     response.event_id,
-                    response.attending,
-                    response.children_attending,
-                    response.number_of_children,
-                    response.children_comments,
-                    response.comment
+                    response.attending
                 ]
             );
         }
@@ -133,7 +123,10 @@ app.post('/api/rsvp', async (req, res) => {
     } catch (err) {
         await pool.query('ROLLBACK');
         console.error('Error saving RSVP:', err);
-        res.status(500).json({ error: 'Error saving RSVP responses' });
+        res.status(500).json({ 
+            error: 'Error saving RSVP responses',
+            details: err.message 
+        });
     }
 });
 
@@ -155,15 +148,30 @@ app.post('/api/upload-guests', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
         
-        await importGuestsFromCSV(req.file.path);
+        console.log('Starting CSV import...');
+        console.log('File path:', req.file.path);
         
-        // Clean up uploaded file
-        fs.unlinkSync(req.file.path);
-        
-        res.json({ message: 'Guest list imported successfully' });
+        try {
+            await importGuestsFromCSV(req.file.path);
+            console.log('CSV import completed successfully');
+            
+            // Clean up uploaded file
+            fs.unlinkSync(req.file.path);
+            
+            res.json({ message: 'Guest list imported successfully' });
+        } catch (importErr) {
+            console.error('Error during CSV import:', importErr);
+            res.status(500).json({ 
+                error: 'Error importing guest list',
+                details: importErr.message 
+            });
+        }
     } catch (err) {
-        console.error('Error importing guests:', err);
-        res.status(500).json({ error: 'Error importing guest list' });
+        console.error('Error in upload endpoint:', err);
+        res.status(500).json({ 
+            error: 'Error processing upload',
+            details: err.message 
+        });
     }
 });
 
@@ -215,21 +223,27 @@ app.get('/api/event-guest-list', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
+                g.id as guest_id,
                 g.name as guest_name,
+                f.family_name,
                 f.rsvp_code,
-                json_agg(
-                    json_build_object(
-                        'event_name', e.name,
-                        'event_date', e.date,
-                        'children_invited', ge.children_invited
-                    )
-                ) as events
+                e.name as event_name,
+                e.date as event_date,
+                CASE 
+                    WHEN r.attending IS NULL THEN 'Pending'
+                    WHEN r.attending THEN 'Will Attend'
+                    ELSE 'Cannot Attend'
+                END as attending_status,
+                r.comment as comments
             FROM guests g
             JOIN families f ON g.family_id = f.id
             LEFT JOIN guest_events ge ON g.id = ge.guest_id
             LEFT JOIN events e ON ge.event_id = e.id
-            GROUP BY g.id, g.name, f.rsvp_code
-            ORDER BY g.name
+            LEFT JOIN rsvp_responses r ON g.id = r.guest_id AND e.id = r.event_id
+            WHERE g.name != '' 
+            AND f.family_name != ''
+            AND f.rsvp_code != ''
+            ORDER BY f.family_name, g.name, e.date
         `);
         res.json(result.rows);
     } catch (err) {
@@ -269,7 +283,7 @@ app.get('/api/debug-tables', async (req, res) => {
         const events = await pool.query('SELECT * FROM events');
         const guestEvents = await pool.query('SELECT * FROM guest_events');
         
-        res.json({
+            res.json({ 
             families: families.rows,
             guests: guests.rows,
             events: events.rows,
@@ -358,8 +372,8 @@ async function startServer() {
         console.log('Database initialized successfully');
 
         // Start the server after database is ready
-        app.listen(port, () => {
-            console.log(`Server running on port ${port}`);
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
         });
     } catch (err) {
         console.error('Failed to start server:', err);

@@ -6,6 +6,7 @@ import './AdminView.css';
 function AdminView() {
     const [eventTotals, setEventTotals] = useState([]);
     const [guestList, setGuestList] = useState([]);
+    const [expandedFamilies, setExpandedFamilies] = useState(new Set());
 
     const fetchData = async () => {
         try {
@@ -66,6 +67,28 @@ function AdminView() {
         }
     };
 
+    const toggleFamily = (familyName) => {
+        setExpandedFamilies(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(familyName)) {
+                newSet.delete(familyName);
+            } else {
+                newSet.add(familyName);
+            }
+            return newSet;
+        });
+    };
+
+    // Group guests by family
+    const groupedGuests = guestList.reduce((acc, guest) => {
+        const familyName = guest.family_name;
+        if (!acc[familyName]) {
+            acc[familyName] = [];
+        }
+        acc[familyName].push(guest);
+        return acc;
+    }, {});
+
     useEffect(() => {
         // Initial fetch
         fetchData();
@@ -81,10 +104,12 @@ function AdminView() {
         <div className="admin-container">
             <div className="admin-header">
                 <h1>Wedding RSVP Admin</h1>
-                <a href="/" className="home-link">← Back to Home</a>
-                <button onClick={fetchData} className="refresh-button">
-                    Refresh Data
-                </button>
+                <div className="admin-controls">
+                    <a href="/" className="home-link">← Back to Home</a>
+                    <button onClick={fetchData} className="refresh-button">
+                        Refresh Data
+                    </button>
+                </div>
             </div>
 
             <div className="admin-section">
@@ -94,8 +119,6 @@ function AdminView() {
                         <tr>
                             <th>Event</th>
                             <th>Date</th>
-                            <th>Adults</th>
-                            <th>Children</th>
                             <th>Total</th>
                         </tr>
                     </thead>
@@ -104,8 +127,6 @@ function AdminView() {
                             <tr key={event.event_id}>
                                 <td>{event.event_name}</td>
                                 <td>{event.event_date}</td>
-                                <td>{event.total_adults}</td>
-                                <td>{event.total_children}</td>
                                 <td>{event.total_attendees}</td>
                             </tr>
                         ))}
@@ -115,47 +136,56 @@ function AdminView() {
 
             <div className="admin-section">
                 <h2>Guest List by Family</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Guest</th>
-                            <th>Event</th>
-                            <th>Status</th>
-                            <th>Adults</th>
-                            <th>Children</th>
-                            <th>Children's Comments</th>
-                            <th>Comments</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {guestList.map((guest, index) => (
-                            <tr key={index}>
-                                <td>{guest.guest_name}</td>
-                                <td>{guest.event_name}</td>
-                                <td>{guest.attending_status}</td>
-                                <td>{guest.adult_count}</td>
-                                <td>{guest.children_count}</td>
-                                <td>{guest.children_details}</td>
-                                <td>{guest.comments}</td>
-                                <td className="action-buttons">
-                                    <button 
-                                        onClick={() => handleDeleteResponse(guest.guest_id)}
-                                        className="delete-button"
-                                    >
-                                        Delete Response
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDeleteGuest(guest.guest_id)}
-                                        className="remove-button"
-                                    >
-                                        Remove from DB
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="family-list">
+                    {Object.entries(groupedGuests).map(([familyName, familyGuests]) => (
+                        <div key={familyName} className="family-section">
+                            <div 
+                                className="family-header"
+                                onClick={() => toggleFamily(familyName)}
+                            >
+                                <h3>{familyName}</h3>
+                                <span className="expand-icon">
+                                    {expandedFamilies.has(familyName) ? '▼' : '▶'}
+                                </span>
+                            </div>
+                            {expandedFamilies.has(familyName) && (
+                                <table className="family-details">
+                                    <thead>
+                                        <tr>
+                                            <th>Guest</th>
+                                            <th>Event</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {familyGuests.map((guest, index) => (
+                                            <tr key={`${guest.guest_id}-${index}`}>
+                                                <td>{guest.guest_name}</td>
+                                                <td>{guest.event_name} ({guest.event_date})</td>
+                                                <td>{guest.attending_status}</td>
+                                                <td className="action-buttons">
+                                                    <button 
+                                                        onClick={() => handleDeleteResponse(guest.guest_id)}
+                                                        className="delete-button"
+                                                    >
+                                                        Delete Response
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDeleteGuest(guest.guest_id)}
+                                                        className="remove-button"
+                                                    >
+                                                        Remove from DB
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
