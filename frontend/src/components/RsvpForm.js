@@ -94,12 +94,13 @@ function RsvpForm({ guestData }) {
 
   // Add this function after the imports and before the RsvpForm component
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric'
-    });
+    if (!dateString) return '';
+    
+    // Split the date string into components
+    const [month, day, year] = dateString.split('-');
+    
+    // Create a formatted date string
+    return `${month}/${day}/${year}`;
   };
 
   if (submitted) {

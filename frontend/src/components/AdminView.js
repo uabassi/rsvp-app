@@ -8,6 +8,16 @@ function AdminView() {
     const [guestList, setGuestList] = useState([]);
     const [expandedFamilies, setExpandedFamilies] = useState(new Set());
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        
+        // Split the date string into components
+        const [month, day, year] = dateString.split('-');
+        
+        // Create a formatted date string
+        return `${month}/${day}/${year}`;
+    };
+
     const fetchData = async () => {
         try {
             // Fetch event totals
@@ -126,7 +136,7 @@ function AdminView() {
                         {eventTotals.map(event => (
                             <tr key={event.event_id}>
                                 <td>{event.event_name}</td>
-                                <td>{event.event_date}</td>
+                                <td>{formatDate(event.event_date)}</td>
                                 <td>{event.total_attendees}</td>
                             </tr>
                         ))}
@@ -162,7 +172,7 @@ function AdminView() {
                                         {familyGuests.map((guest, index) => (
                                             <tr key={`${guest.guest_id}-${index}`}>
                                                 <td>{guest.guest_name}</td>
-                                                <td>{guest.event_name} ({guest.event_date})</td>
+                                                <td>{guest.event_name} ({formatDate(guest.event_date)})</td>
                                                 <td>{guest.attending_status}</td>
                                                 <td className="action-buttons">
                                                     <button 
