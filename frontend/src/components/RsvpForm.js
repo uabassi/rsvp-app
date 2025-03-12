@@ -115,8 +115,7 @@ function RsvpForm({ guestData }) {
   return (
     <div className="rsvp-content">
       <h2 className="rsvp-form-title">Family RSVP</h2>
-      <p className="family-note">Asalamualykum {guestData.family_name}, with hearts full of gratitude to Allah (SWT), we are delighted to invite you to join us in celebrating the blessed union of Umayya Abassi and Malaika Kiyani. Please kindly RSVP for events to which each of your family members has been invited to, in sha Allah</p>
-      
+      <p className="family-note">Asalamualykum {guestData.family_name}, with hearts full of gratitude to Allah (SWT), we are delighted to invite you to join us in celebrating the blessed union of Umayya Abassi and Malaika Kiyani. Please kindly RSVP for events to which each of your family members have been invited to, in sha Allah
       <form onSubmit={handleSubmit} className="rsvp-form">
         {guestData.family_guests.map((guest, index) => (
           <div key={guest.guest_id} className="guest-section">
