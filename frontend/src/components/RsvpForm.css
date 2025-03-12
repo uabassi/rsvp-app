@@ -323,8 +323,8 @@
 }
 
 .radio-label input[type="radio"] {
-    width: 1rem;
-    height: 1em;
+    width: 1.4rem;
+    height: 0.7rem;
     margin: 0;
     cursor: pointer;
     accent-color: black;
@@ -343,6 +343,6 @@
 
     .radio-label input[type="radio"] {
         width: 1rem;
-        height: 0.75rem;
+        height: 0.5rem;
     }
 }
