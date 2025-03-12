@@ -139,7 +139,7 @@ function RsvpForm({ guestData }) {
                       checked={familyResponses[guest.name]?.[event.id]?.attending === true}
                       onChange={() => handleResponseChange(guest.name, event.id, 'attending', true)}
                     />
-                    Will Attend
+                    <span>Will Attend</span>
                   </label>
                   <label className="radio-label">
                     <input
@@ -148,7 +148,7 @@ function RsvpForm({ guestData }) {
                       checked={familyResponses[guest.name]?.[event.id]?.attending === false}
                       onChange={() => handleResponseChange(guest.name, event.id, 'attending', false)}
                     />
-                    Cannot Attend
+                    <span>Cannot Attend</span>
                   </label>
                 </div>
               </div>

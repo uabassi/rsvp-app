@@ -324,10 +324,10 @@
 
 .radio-label input[type="radio"] {
     width: 1rem;
-    height: 0.65rem;
+    height: 1em;
     margin: 0;
     cursor: pointer;
-    accent-color: #f4ece6;
+    accent-color: black;
 }
 
 @media (max-width: 640px) {
@@ -339,5 +339,10 @@
     .radio-label {
         width: 100%;
         justify-content: flex-start;
+    }
+
+    .radio-label input[type="radio"] {
+        width: 1.4rem;
+        height: 1.4rem;
     }
 }
