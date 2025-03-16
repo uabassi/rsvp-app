@@ -46,7 +46,6 @@ app.post('/api/login', async (req, res) => {
                 f.id as family_id,
                 f.family_name,
                 f.rsvp_code,
-                f.family_members,
                 json_agg(
                     json_build_object(
                         'guest_id', g.id,
@@ -68,7 +67,7 @@ app.post('/api/login', async (req, res) => {
             FROM families f
             JOIN guests g ON f.id = g.family_id
             WHERE f.rsvp_code = $1
-            GROUP BY f.id, f.family_name, f.rsvp_code, f.family_members`,
+            GROUP BY f.id, f.family_name, f.rsvp_code`,
             [rsvpCode]
         );
 

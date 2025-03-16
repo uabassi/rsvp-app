@@ -30,8 +30,7 @@ async function initializeDatabase() {
             CREATE TABLE families (
                 id SERIAL PRIMARY KEY,
                 family_name TEXT NOT NULL,
-                rsvp_code TEXT UNIQUE NOT NULL,
-                family_members TEXT[]
+                rsvp_code TEXT UNIQUE NOT NULL
             );
         `);
 
@@ -213,18 +212,22 @@ async function importGuestsFromCSV(filePath) {
         const processedFamilies = new Map();
 
         for (const record of records) {
+            // Validate required fields
+            if (!record.family_name || !record.rsvp_code || !record.member_name) {
+                console.error('Missing required fields in record:', record);
+                continue;
+            }
+
             let familyId;
             
             if (processedFamilies.has(record.rsvp_code)) {
                 familyId = processedFamilies.get(record.rsvp_code);
             } else {
-                const familyMembers = record.family_members.split(',').map(m => m.trim());
-                
                 const familyResult = await pool.query(
-                    `INSERT INTO families (family_name, rsvp_code, family_members)
-                     VALUES ($1, $2, $3)
+                    `INSERT INTO families (family_name, rsvp_code)
+                     VALUES ($1, $2)
                      RETURNING id`,
-                    [record.family_name, record.rsvp_code, familyMembers]
+                    [record.family_name, record.rsvp_code]
                 );
                 familyId = familyResult.rows[0].id;
                 processedFamilies.set(record.rsvp_code, familyId);
@@ -241,19 +244,19 @@ async function importGuestsFromCSV(filePath) {
             const guestId = guestResult.rows[0].id;
             
             // Process events
-            const invitedEvents = record.invited_events
-                ? record.invited_events.split(',').map(e => e.trim())
-                : [];
-            
-            for (const eventName of invitedEvents) {
-                const normalizedEventName = eventName.toLowerCase().trim();
-                const eventId = eventMap[normalizedEventName];
-                if (eventId) {
-                    await pool.query(
-                        `INSERT INTO guest_events (guest_id, event_id)
-                         VALUES ($1, $2)`,
-                        [guestId, eventId]
-                    );
+            if (record.invited_events) {
+                const invitedEvents = record.invited_events.split(',').map(e => e.trim());
+                
+                for (const eventName of invitedEvents) {
+                    const normalizedEventName = eventName.toLowerCase().trim();
+                    const eventId = eventMap[normalizedEventName];
+                    if (eventId) {
+                        await pool.query(
+                            `INSERT INTO guest_events (guest_id, event_id)
+                             VALUES ($1, $2)`,
+                            [guestId, eventId]
+                        );
+                    }
                 }
             }
         }

@@ -13,6 +13,27 @@ if (!fs.existsSync(csvPath)) {
     process.exit(1);
 }
 
+// Validate CSV format
+try {
+    const fileContent = fs.readFileSync(csvPath, 'utf-8');
+    const firstLine = fileContent.split('\n')[0].trim();
+    const expectedHeaders = ['family_name', 'rsvp_code', 'member_name', 'invited_events'];
+    const headers = firstLine.split('\t');
+    
+    const missingHeaders = expectedHeaders.filter(header => !headers.includes(header));
+    if (missingHeaders.length > 0) {
+        console.error('Error: CSV is missing required headers:', missingHeaders.join(', '));
+        console.error('Expected headers:', expectedHeaders.join(', '));
+        console.error('Found headers:', headers.join(', '));
+        process.exit(1);
+    }
+    
+    console.log('CSV format validation passed');
+} catch (err) {
+    console.error('Error validating CSV format:', err);
+    process.exit(1);
+}
+
 console.log('Reading CSV file...');
 console.log('CSV Path:', csvPath);
 
@@ -43,4 +64,5 @@ axios.post(`${API_URL}/api/upload-guests`, form, {
         // Something happened in setting up the request
         console.error('Error setting up request:', error.message);
     }
+    process.exit(1);
 }); 
