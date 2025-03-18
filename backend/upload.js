@@ -18,7 +18,15 @@ try {
     const fileContent = fs.readFileSync(csvPath, 'utf-8');
     const firstLine = fileContent.split('\n')[0].trim();
     const expectedHeaders = ['family_name', 'rsvp_code', 'member_name', 'invited_events'];
-    const headers = firstLine.split('\t');
+    
+    // Try both tab and comma delimiters
+    let headers = firstLine.split('\t');
+    if (headers.length === 1) {
+        headers = firstLine.split(',');
+    }
+    
+    // Clean up any quotes from headers
+    headers = headers.map(header => header.replace(/["']/g, '').trim());
     
     const missingHeaders = expectedHeaders.filter(header => !headers.includes(header));
     if (missingHeaders.length > 0) {

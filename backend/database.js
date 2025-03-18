@@ -181,7 +181,10 @@ async function importGuestsFromCSV(filePath) {
                     columns: true,
                     skip_empty_lines: true,
                     trim: true,
-                    relaxColumnCount: true
+                    relaxColumnCount: true,
+                    delimiter: content.includes('\t') ? '\t' : ',', // Auto-detect delimiter
+                    quote: '"', // Handle quoted fields
+                    relax_quotes: true // Allow quotes to be optional
                 }, (err, records) => {
                     if (err) reject(err);
                     else resolve(records);
@@ -212,25 +215,33 @@ async function importGuestsFromCSV(filePath) {
         const processedFamilies = new Map();
 
         for (const record of records) {
+            // Clean up field values
+            const cleanRecord = {
+                family_name: record.family_name?.trim(),
+                rsvp_code: record.rsvp_code?.trim(),
+                member_name: record.member_name?.trim(),
+                invited_events: record.invited_events?.trim()
+            };
+
             // Validate required fields
-            if (!record.family_name || !record.rsvp_code || !record.member_name) {
-                console.error('Missing required fields in record:', record);
+            if (!cleanRecord.family_name || !cleanRecord.rsvp_code || !cleanRecord.member_name) {
+                console.error('Missing required fields in record:', cleanRecord);
                 continue;
             }
 
             let familyId;
             
-            if (processedFamilies.has(record.rsvp_code)) {
-                familyId = processedFamilies.get(record.rsvp_code);
+            if (processedFamilies.has(cleanRecord.rsvp_code)) {
+                familyId = processedFamilies.get(cleanRecord.rsvp_code);
             } else {
                 const familyResult = await pool.query(
                     `INSERT INTO families (family_name, rsvp_code)
                      VALUES ($1, $2)
                      RETURNING id`,
-                    [record.family_name, record.rsvp_code]
+                    [cleanRecord.family_name, cleanRecord.rsvp_code]
                 );
                 familyId = familyResult.rows[0].id;
-                processedFamilies.set(record.rsvp_code, familyId);
+                processedFamilies.set(cleanRecord.rsvp_code, familyId);
             }
             
             // Create guest
@@ -238,14 +249,14 @@ async function importGuestsFromCSV(filePath) {
                 `INSERT INTO guests (name, family_id)
                  VALUES ($1, $2)
                  RETURNING id`,
-                [record.member_name, familyId]
+                [cleanRecord.member_name, familyId]
             );
             
             const guestId = guestResult.rows[0].id;
             
             // Process events
-            if (record.invited_events) {
-                const invitedEvents = record.invited_events.split(',').map(e => e.trim());
+            if (cleanRecord.invited_events) {
+                const invitedEvents = cleanRecord.invited_events.split(',').map(e => e.trim());
                 
                 for (const eventName of invitedEvents) {
                     const normalizedEventName = eventName.toLowerCase().trim();
