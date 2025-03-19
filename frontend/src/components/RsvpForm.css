@@ -19,7 +19,7 @@
     text-align: center;
     color: #f4ece6;
     width: 100%;
-    max-width: 500px;
+    max-width: 800px;
     margin: 0 auto;
     background: rgba(244, 236, 230, 0.1);
     border: 1px solid #f4ece6;
@@ -49,10 +49,8 @@
     width: 100%;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 2rem;
-    align-items: stretch;
-    padding: 0;
-    box-sizing: border-box;
 }
 
 .event-card {
@@ -111,7 +109,7 @@
 .reply-button {
     width: 100%;
     max-width: 300px;
-    margin: 2rem auto;
+    margin: 1rem 0;
     padding: 0.75rem 2rem;
     border: 1px solid #f4ece6;
     background: transparent;
@@ -124,8 +122,7 @@
 }
 
 .reply-button:hover {
-    background: #f4ece6;
-    color: #000000;
+    background: rgba(244, 236, 230, 0.1);
 }
 
 .error-message {
@@ -139,6 +136,7 @@
     border-radius: 0.25rem;
     line-height: 1.5;
     text-align: left;
+    width: 100%;
 }
 
 .error-message br {
@@ -147,8 +145,7 @@
 
 @media (max-width: 640px) {
     .rsvp-content {
-        padding: 1.5rem;
-        margin: 1rem;
+        padding: 1rem;
     }
     
     .guest-section {
@@ -247,17 +244,15 @@
 
 .family-note {
     font-family: 'Montserrat', sans-serif;
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: #f4ece6;
-    margin: 1.5rem 0 2.5rem 0;
+    margin: 1.5rem 0;
     padding: 1.5rem;
     background: rgba(244, 236, 230, 0.1);
     border-radius: 0.5rem;
     text-align: center;
-    line-height: 1.8;
+    line-height: 1.6;
     border: 1px solid rgba(244, 236, 230, 0.2);
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .guest-section {
@@ -301,8 +296,8 @@
 
 .attendance-options {
     display: flex;
-    gap: 2rem;
-    margin-top: 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .radio-label {
@@ -312,8 +307,7 @@
     cursor: pointer;
     font-family: 'Montserrat', sans-serif;
     font-size: 0.85rem;
-    color: #f4ece6;
-    padding: 0rem;
+    padding: 0.5rem;
     border-radius: 0.25rem;
     transition: all 0.3s ease;
 }
@@ -323,26 +317,191 @@
 }
 
 .radio-label input[type="radio"] {
-    width: 1.4rem;
-    height: 0.7rem;
+    width: 1.2rem;
+    height: 1.2rem;
     margin: 0;
     cursor: pointer;
-    accent-color: black;
+    accent-color: #f4ece6;
+}
+
+.guest-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.guest-tab {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: 1px solid #f4ece6;
+    color: #f4ece6;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.9rem;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+.guest-tab.active {
+    background: rgba(244, 236, 230, 0.2);
+}
+
+.guest-tab:hover {
+    background: rgba(244, 236, 230, 0.1);
+}
+
+.guest-events {
+    width: 100%;
+    display: none;
+}
+
+.guest-events.active {
+    display: block;
+}
+
+.guest-events.hidden {
+    display: none;
+}
+
+.events-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.event-card {
+    background: rgba(244, 236, 230, 0.05);
+    border: 1px solid rgba(244, 236, 230, 0.2);
+    border-radius: 0.25rem;
+    padding: 1rem;
+}
+
+.event-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem;
+    font-weight: 400;
+    margin: 0 0 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.event-date {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(244, 236, 230, 0.8);
+}
+
+.thank-you-container {
+    text-align: center;
+    padding: 2rem;
+    color: #f4ece6;
+}
+
+.thank-you-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    margin-bottom: 1rem;
+}
+
+.thank-you-text {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+.family-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.guest-card {
+    background: rgba(244, 236, 230, 0.05);
+    border: 1px solid rgba(244, 236, 230, 0.2);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.guest-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+    margin: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(244, 236, 230, 0.2);
+    text-align: left;
+}
+
+.event-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.checkbox-label:hover {
+    background: rgba(244, 236, 230, 0.1);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #f4ece6;
+}
+
+.event-name {
+    font-weight: 500;
+    flex: 1;
+}
+
+.event-date {
+    color: rgba(244, 236, 230, 0.7);
+    font-size: 0.8rem;
 }
 
 @media (max-width: 640px) {
-    .attendance-options {
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .radio-label {
-        width: 100%;
-        justify-content: flex-start;
+    .rsvp-content {
+        padding: 1rem;
     }
 
-    .radio-label input[type="radio"] {
-        width: 1rem;
-        height: 0.5rem;
+    .family-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .guest-card {
+        padding: 1rem;
+    }
+
+    .checkbox-label {
+        font-size: 0.8rem;
+    }
+
+    .family-note {
+        font-size: 0.8rem;
+        padding: 1rem;
     }
 }

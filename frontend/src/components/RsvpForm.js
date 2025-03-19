@@ -4,39 +4,33 @@ import './RsvpForm.css';
 import config from '../config';
 
 function RsvpForm({ guestData }) {
-  console.log('Initial Guest Data:', guestData);
-  
-  // State to store responses for each family member
   const [familyResponses, setFamilyResponses] = useState(() => {
-    // Initialize responses for each family member with null attendance
     const initialResponses = {};
-    
     guestData.family_guests.forEach(guest => {
       initialResponses[guest.name] = {};
       if (guest.events) {
         guest.events.forEach(event => {
           initialResponses[guest.name][event.id] = {
-            attending: null, // Initialize as null instead of false
+            attending: null,
             guest_id: guest.guest_id
           };
         });
       }
     });
-    
     return initialResponses;
   });
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
-  const handleResponseChange = (memberName, eventId, field, value) => {
+  const handleCheckboxChange = (memberName, eventId) => {
     setFamilyResponses(prev => ({
       ...prev,
       [memberName]: {
         ...prev[memberName],
         [eventId]: {
           ...prev[memberName][eventId],
-          [field]: value,
+          attending: !prev[memberName][eventId]?.attending,
           guest_id: prev[memberName][eventId].guest_id
         }
       }
@@ -45,7 +39,6 @@ function RsvpForm({ guestData }) {
 
   const validateResponses = () => {
     let missingResponses = [];
-    
     Object.entries(familyResponses).forEach(([memberName, memberEvents]) => {
       Object.entries(memberEvents).forEach(([eventId, response]) => {
         if (response.attending === null) {
@@ -55,14 +48,11 @@ function RsvpForm({ guestData }) {
         }
       });
     });
-    
     return missingResponses;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Check for missing responses
     const missingResponses = validateResponses();
     if (missingResponses.length > 0) {
       setError(`Please respond to all events:\n${missingResponses.join('\n')}`);
@@ -76,14 +66,12 @@ function RsvpForm({ guestData }) {
           responses.push({
             guest_id: response.guest_id,
             event_id: parseInt(eventId),
-            attending: response.attending
+            attending: response.attending ?? false
           });
         });
       });
 
-      await axios.post(`${config.apiUrl}/api/rsvp`, {
-        responses
-      });
+      await axios.post(`${config.apiUrl}/api/rsvp`, { responses });
       setSubmitted(true);
       setError('');
     } catch (err) {
@@ -92,14 +80,9 @@ function RsvpForm({ guestData }) {
     }
   };
 
-  // Add this function after the imports and before the RsvpForm component
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    
-    // Split the date string into components
     const [month, day, year] = dateString.split('-');
-    
-    // Create a formatted date string
     return `${month}/${day}/${year}`;
   };
 
@@ -116,44 +99,31 @@ function RsvpForm({ guestData }) {
     <div className="rsvp-content">
       <h2 className="rsvp-form-title">Family RSVP</h2>
       <p className="family-note">Asalamualykum {guestData.family_name}, with hearts full of gratitude to Allah (SWT), we are delighted to invite you to join us in celebrating the blessed union of Umayya Abassi and Malaika Kiyani. Please kindly RSVP for events to which each of your family members have been invited to, in sha Allah</p>
+      
       <form onSubmit={handleSubmit} className="rsvp-form">
-        {guestData.family_guests.map((guest, index) => (
-          <div key={guest.guest_id} className="guest-section">
-            <div className="guest-header">
-              <h3 className="guest-name">Family Member: {guest.name}</h3>
-            </div>
-            
-            {guest.events && guest.events.map(event => (
-              <div key={`${guest.guest_id}-${event.id}`} className="event-card">
-                <h4 className="event-title">
-                  {event.name} - {formatDate(event.date)}
-                </h4>
-                
-                <div className="form-group attendance-options">
-                  <label className="radio-label">
+        <div className="family-grid">
+          {guestData.family_guests.map(guest => (
+            <div key={guest.guest_id} className="guest-card">
+              <h3 className="guest-name">{guest.name}</h3>
+              <div className="event-checkboxes">
+                {guest.events && guest.events.map(event => (
+                  <label 
+                    key={`${guest.guest_id}-${event.id}`} 
+                    className="checkbox-label"
+                  >
                     <input
-                      type="radio"
-                      name={`attendance-${guest.guest_id}-${event.id}`}
+                      type="checkbox"
                       checked={familyResponses[guest.name]?.[event.id]?.attending === true}
-                      onChange={() => handleResponseChange(guest.name, event.id, 'attending', true)}
+                      onChange={() => handleCheckboxChange(guest.name, event.id)}
                     />
-                    <span>Will Attend</span>
+                    <span className="event-name">{event.name}</span>
+                    <span className="event-date">({formatDate(event.date)})</span>
                   </label>
-                  <label className="radio-label">
-                    <input
-                      type="radio"
-                      name={`attendance-${guest.guest_id}-${event.id}`}
-                      checked={familyResponses[guest.name]?.[event.id]?.attending === false}
-                      onChange={() => handleResponseChange(guest.name, event.id, 'attending', false)}
-                    />
-                    <span>Cannot Attend</span>
-                  </label>
-                </div>
+                ))}
               </div>
-            ))}
-            {index < guestData.family_guests.length - 1 && <div className="guest-divider" />}
-          </div>
-        ))}
+            </div>
+          ))}
+        </div>
         
         <button type="submit" className="reply-button">Submit Family RSVP</button>
         {error && <p className="error-message">{error.split('\n').map((line, i) => (
@@ -166,4 +136,4 @@ function RsvpForm({ guestData }) {
   );
 }
 
-export default RsvpForm; 
+export default RsvpForm;
