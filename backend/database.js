@@ -74,7 +74,7 @@ async function initializeDatabase() {
                 ('Nikkah', '06-13-2025'),
                 ('Mehndi', '06-19-2025'),
                 ('Baraat', '06-21-2025'),
-                ('Valima', '06-22-2025')
+                ('Walima', '06-22-2025')
             ON CONFLICT DO NOTHING;
         `);
 
