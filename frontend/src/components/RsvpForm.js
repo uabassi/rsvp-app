@@ -11,7 +11,7 @@ function RsvpForm({ guestData }) {
       if (guest.events) {
         guest.events.forEach(event => {
           initialResponses[guest.name][event.id] = {
-            attending: null,
+            attending: false,
             guest_id: guest.guest_id
           };
         });
@@ -37,27 +37,8 @@ function RsvpForm({ guestData }) {
     }));
   };
 
-  const validateResponses = () => {
-    let missingResponses = [];
-    Object.entries(familyResponses).forEach(([memberName, memberEvents]) => {
-      Object.entries(memberEvents).forEach(([eventId, response]) => {
-        if (response.attending === null) {
-          const guest = guestData.family_guests.find(g => g.name === memberName);
-          const event = guest.events.find(e => e.id === parseInt(eventId));
-          missingResponses.push(`${memberName} - ${event.name}`);
-        }
-      });
-    });
-    return missingResponses;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const missingResponses = validateResponses();
-    if (missingResponses.length > 0) {
-      setError(`Please respond to all events:\n${missingResponses.join('\n')}`);
-      return;
-    }
 
     try {
       const responses = [];
@@ -66,7 +47,7 @@ function RsvpForm({ guestData }) {
           responses.push({
             guest_id: response.guest_id,
             event_id: parseInt(eventId),
-            attending: response.attending ?? false
+            attending: response.attending
           });
         });
       });
@@ -98,7 +79,9 @@ function RsvpForm({ guestData }) {
   return (
     <div className="rsvp-content">
       <h2 className="rsvp-form-title">Family RSVP</h2>
-      <p className="family-note">Asalamualykum {guestData.family_name}, with hearts full of gratitude to Allah (SWT), we are delighted to invite you to join us in celebrating the blessed union of Umayya Abassi and Malaika Kiyani. Please kindly RSVP for events to which each of your family members have been invited to, in sha Allah</p>
+      <p className="family-note">
+        Asalamualykum {guestData.family_name}, with hearts full of gratitude to Allah (SWT), we are delighted to invite you to join us in celebrating the blessed union of Umayya Abassi and Malaika Kiyani. Please check the events that each family member will attend. Leaving an event unchecked indicates that the member cannot attend.
+      </p>
       
       <form onSubmit={handleSubmit} className="rsvp-form">
         <div className="family-grid">
@@ -126,11 +109,7 @@ function RsvpForm({ guestData }) {
         </div>
         
         <button type="submit" className="reply-button">Submit Family RSVP</button>
-        {error && <p className="error-message">{error.split('\n').map((line, i) => (
-          <React.Fragment key={i}>
-            {line}<br/>
-          </React.Fragment>
-        ))}</p>}
+        {error && <p className="error-message">{error}</p>}
       </form>
     </div>
   );
