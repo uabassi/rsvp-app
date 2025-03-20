@@ -111,16 +111,19 @@ function AdminView() {
         });
     };
 
-    // Group guests by family and store family IDs
+    // Group guests by family name AND rsvp code
     const groupedGuests = guestList.reduce((acc, guest) => {
-        const familyName = guest.family_name;
-        if (!acc[familyName]) {
-            acc[familyName] = {
+        // Create a unique key combining family name and RSVP code
+        const familyKey = `${guest.family_name} (${guest.rsvp_code})`;
+        
+        if (!acc[familyKey]) {
+            acc[familyKey] = {
                 guests: [],
-                familyId: guest.family_id // Store the family ID
+                familyId: guest.family_id,
+                rsvpCode: guest.rsvp_code
             };
         }
-        acc[familyName].guests.push(guest);
+        acc[familyKey].guests.push(guest);
         return acc;
     }, {});
 
@@ -211,13 +214,13 @@ function AdminView() {
             <div className="admin-section">
                 <h2>Guest List by Family</h2>
                 <div className="family-list">
-                    {Object.entries(groupedGuests).map(([familyName, familyData]) => (
-                        <div key={familyName} className="family-section">
+                    {Object.entries(groupedGuests).map(([familyKey, familyData]) => (
+                        <div key={familyKey} className="family-section">
                             <div className="family-header">
-                                <div className="family-title" onClick={() => toggleFamily(familyName)}>
-                                    <h3>{familyName}</h3>
+                                <div className="family-title" onClick={() => toggleFamily(familyKey)}>
+                                    <h3>{familyKey}</h3>
                                     <span className="expand-icon">
-                                        {expandedFamilies.has(familyName) ? '▼' : '▶'}
+                                        {expandedFamilies.has(familyKey) ? '▼' : '▶'}
                                     </span>
                                 </div>
                                 <button 
@@ -227,7 +230,7 @@ function AdminView() {
                                     Delete Family
                                 </button>
                             </div>
-                            {expandedFamilies.has(familyName) && (
+                            {expandedFamilies.has(familyKey) && (
                                 <table className="family-details">
                                     <thead>
                                         <tr>
