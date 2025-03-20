@@ -13,53 +13,50 @@ const pool = new Pool({
 // Function to set up all database tables and initial test data
 async function initializeDatabase() {
     try {
-        // First drop everything
-        await pool.query(`
-            DROP VIEW IF EXISTS formatted_rsvp_responses CASCADE;
-            DROP VIEW IF EXISTS event_totals CASCADE;
-            DROP VIEW IF EXISTS event_guest_list CASCADE;
-            DROP TABLE IF EXISTS rsvp_responses CASCADE;
-            DROP TABLE IF EXISTS guest_events CASCADE;
-            DROP TABLE IF EXISTS events CASCADE;
-            DROP TABLE IF EXISTS guests CASCADE;
-            DROP TABLE IF EXISTS families CASCADE;
+        // First check if tables exist
+        const tableExists = await pool.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                AND table_name = 'families'
+            );
         `);
 
-        // Create tables with updated schema - removed notes columns
+        // If tables already exist, don't recreate them
+        if (tableExists.rows[0].exists) {
+            console.log('Database tables already exist, skipping initialization');
+            return;
+        }
+
+        console.log('Initializing database for first time...');
+
+        // Create tables if they don't exist
         await pool.query(`
-            CREATE TABLE families (
+            CREATE TABLE IF NOT EXISTS families (
                 id SERIAL PRIMARY KEY,
                 family_name TEXT NOT NULL,
                 rsvp_code TEXT UNIQUE NOT NULL
             );
-        `);
 
-        await pool.query(`
-            CREATE TABLE guests (
+            CREATE TABLE IF NOT EXISTS guests (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 family_id INTEGER REFERENCES families(id)
             );
-        `);
 
-        await pool.query(`
-            CREATE TABLE events (
+            CREATE TABLE IF NOT EXISTS events (
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 date TEXT
             );
-        `);
 
-        await pool.query(`
-            CREATE TABLE guest_events (
+            CREATE TABLE IF NOT EXISTS guest_events (
                 guest_id INTEGER REFERENCES guests(id),
                 event_id INTEGER REFERENCES events(id),
                 PRIMARY KEY (guest_id, event_id)
             );
-        `);
 
-        await pool.query(`
-            CREATE TABLE rsvp_responses (
+            CREATE TABLE IF NOT EXISTS rsvp_responses (
                 id SERIAL PRIMARY KEY,
                 guest_id INTEGER REFERENCES guests(id),
                 event_id INTEGER REFERENCES events(id),
@@ -68,17 +65,21 @@ async function initializeDatabase() {
             );
         `);
 
-        // Insert events
-        await pool.query(`
-            INSERT INTO events (name, date) VALUES 
-                ('Nikkah', '06-13-2025'),
-                ('Mehndi', '06-19-2025'),
-                ('Baraat', '06-20-2025'),
-                ('Walima', '06-22-2025')
-            ON CONFLICT DO NOTHING;
-        `);
+        // Check if events table is empty before inserting initial events
+        const eventsExist = await pool.query('SELECT COUNT(*) FROM events');
+        if (parseInt(eventsExist.rows[0].count) === 0) {
+            // Insert events only if none exist
+            await pool.query(`
+                INSERT INTO events (name, date) VALUES 
+                    ('Nikkah', '06-13-2025'),
+                    ('Mehndi', '06-19-2025'),
+                    ('Baraat', '06-20-2025'),
+                    ('Walima', '06-22-2025')
+                ON CONFLICT DO NOTHING;
+            `);
+        }
 
-        // Create views
+        // Create or replace views
         await pool.query(`
             CREATE OR REPLACE VIEW event_guest_list AS
             SELECT 
@@ -103,7 +104,7 @@ async function initializeDatabase() {
         `);
 
         await pool.query(`
-            CREATE VIEW formatted_rsvp_responses AS
+            CREATE OR REPLACE VIEW formatted_rsvp_responses AS
             SELECT 
                 r.id,
                 g.name as guest_name,
@@ -120,7 +121,7 @@ async function initializeDatabase() {
         `);
 
         await pool.query(`
-            CREATE VIEW event_totals AS
+            CREATE OR REPLACE VIEW event_totals AS
             SELECT 
                 e.id as event_id,
                 e.name as event_name,
@@ -136,6 +137,7 @@ async function initializeDatabase() {
             ORDER BY e.date;
         `);
 
+        console.log('Database initialized successfully');
     } catch (err) {
         console.error('Error initializing database:', err);
         throw err;
@@ -182,9 +184,9 @@ async function importGuestsFromCSV(filePath) {
                     skip_empty_lines: true,
                     trim: true,
                     relaxColumnCount: true,
-                    delimiter: content.includes('\t') ? '\t' : ',', // Auto-detect delimiter
-                    quote: '"', // Handle quoted fields
-                    relax_quotes: true // Allow quotes to be optional
+                    delimiter: content.includes('\t') ? '\t' : ',',
+                    quote: '"',
+                    relax_quotes: true
                 }, (err, records) => {
                     if (err) reject(err);
                     else resolve(records);
@@ -254,19 +256,32 @@ async function importGuestsFromCSV(filePath) {
             
             const guestId = guestResult.rows[0].id;
             
-            // Process events
+            // Process events - ensure no duplicates
             if (cleanRecord.invited_events) {
-                const invitedEvents = cleanRecord.invited_events.split(',').map(e => e.trim());
+                // Split events and remove duplicates using Set
+                const invitedEvents = [...new Set(
+                    cleanRecord.invited_events
+                        .split(',')
+                        .map(e => e.trim())
+                        .filter(e => e) // Remove empty strings
+                )];
+                
+                // Keep track of added events for this guest to prevent duplicates
+                const addedEvents = new Set();
                 
                 for (const eventName of invitedEvents) {
                     const normalizedEventName = eventName.toLowerCase().trim();
                     const eventId = eventMap[normalizedEventName];
-                    if (eventId) {
+                    
+                    // Only add if we have a valid event ID and haven't added it yet
+                    if (eventId && !addedEvents.has(eventId)) {
                         await pool.query(
                             `INSERT INTO guest_events (guest_id, event_id)
-                             VALUES ($1, $2)`,
+                             VALUES ($1, $2)
+                             ON CONFLICT (guest_id, event_id) DO NOTHING`,
                             [guestId, eventId]
                         );
+                        addedEvents.add(eventId);
                     }
                 }
             }

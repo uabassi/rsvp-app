@@ -7,6 +7,9 @@ function AdminView() {
     const [eventTotals, setEventTotals] = useState([]);
     const [guestList, setGuestList] = useState([]);
     const [expandedFamilies, setExpandedFamilies] = useState(new Set());
+    const [showClearDialog, setShowClearDialog] = useState(false);
+    const [clearPassword, setClearPassword] = useState('');
+    const [clearError, setClearError] = useState('');
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -74,16 +77,25 @@ function AdminView() {
     };
 
     const handleClearDatabase = async () => {
-        if (window.confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-            try {
-                await axios.post(`${config.apiUrl}/api/clear-data`);
-                alert('Database cleared successfully');
-                // Refresh the data
-                fetchData();
-            } catch (error) {
-                console.error('Error clearing database:', error);
-                alert('Failed to clear database');
+        if (clearPassword !== 'delete') {
+            setClearError('Incorrect password');
+            return;
+        }
+
+        try {
+            // Delete all families (this will cascade delete all guests and their responses)
+            const families = Object.values(groupedGuests);
+            for (const family of families) {
+                await axios.delete(`${config.apiUrl}/api/family/${family.familyId}`);
             }
+            
+            alert('Database cleared successfully. Please upload a new CSV file to add guests.');
+            setClearPassword('');
+            setShowClearDialog(false);
+            fetchData();
+        } catch (error) {
+            console.error('Error clearing database:', error);
+            alert('Failed to clear database: ' + error.response?.data?.error || error.message);
         }
     };
 
@@ -132,8 +144,47 @@ function AdminView() {
                     <button onClick={fetchData} className="refresh-button">
                         Refresh Data
                     </button>
+                    <button 
+                        onClick={() => setShowClearDialog(true)} 
+                        className="clear-button"
+                    >
+                        Clear Database
+                    </button>
                 </div>
             </div>
+
+            {showClearDialog && (
+                <div className="clear-dialog">
+                    <div className="clear-dialog-content">
+                        <h3>Clear Database</h3>
+                        <p>This will delete all guests and their RSVP responses. This action cannot be undone.</p>
+                        <div className="clear-form">
+                            <input
+                                type="password"
+                                placeholder="Enter password to confirm"
+                                value={clearPassword}
+                                onChange={(e) => setClearPassword(e.target.value)}
+                            />
+                            {clearError && <div className="clear-error">{clearError}</div>}
+                            <div className="clear-buttons">
+                                <button onClick={handleClearDatabase} className="confirm-clear">
+                                    Clear Database
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        setShowClearDialog(false);
+                                        setClearPassword('');
+                                        setClearError('');
+                                    }} 
+                                    className="cancel-clear"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="admin-section">
                 <h2>Event Totals</h2>
