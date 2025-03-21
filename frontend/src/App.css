@@ -322,4 +322,28 @@ label {
 
 .admin-logout-button:hover {
     background-color: #c82333;
+}
+
+.loading {
+    color: #f4ece6;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.2rem;
+    text-align: center;
+    padding: 2rem;
+    background: rgba(244, 236, 230, 0.1);
+    border-radius: 0.5rem;
+    border: 1px solid rgba(244, 236, 230, 0.2);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.6;
+    }
 } 

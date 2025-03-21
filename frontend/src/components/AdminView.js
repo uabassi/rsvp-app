@@ -10,6 +10,7 @@ function AdminView() {
     const [showClearDialog, setShowClearDialog] = useState(false);
     const [clearPassword, setClearPassword] = useState('');
     const [clearError, setClearError] = useState('');
+    const [linkCopied, setLinkCopied] = useState('');
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -127,6 +128,16 @@ function AdminView() {
         return acc;
     }, {});
 
+    const handleCopyLink = (rsvpCode) => {
+        const baseUrl = window.location.origin;
+        const rsvpLink = `${baseUrl}/?code=${rsvpCode}`;
+        
+        navigator.clipboard.writeText(rsvpLink).then(() => {
+            setLinkCopied(rsvpCode);
+            setTimeout(() => setLinkCopied(''), 2000); // Reset after 2 seconds
+        });
+    };
+
     useEffect(() => {
         // Initial fetch
         fetchData();
@@ -223,12 +234,20 @@ function AdminView() {
                                         {expandedFamilies.has(familyKey) ? '▼' : '▶'}
                                     </span>
                                 </div>
-                                <button 
-                                    onClick={() => handleDeleteFamily(familyData.familyId)}
-                                    className="delete-family-button"
-                                >
-                                    Delete Family
-                                </button>
+                                <div className="family-actions">
+                                    <button 
+                                        onClick={() => handleCopyLink(familyData.rsvpCode)}
+                                        className="copy-link-button"
+                                    >
+                                        {linkCopied === familyData.rsvpCode ? 'Copied!' : 'Copy RSVP Link'}
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteFamily(familyData.familyId)}
+                                        className="delete-family-button"
+                                    >
+                                        Delete Family
+                                    </button>
+                                </div>
                             </div>
                             {expandedFamilies.has(familyKey) && (
                                 <table className="family-details">
