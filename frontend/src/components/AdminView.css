@@ -315,6 +315,100 @@ tr:hover {
     background-color: #218838;
 }
 
+.status-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.status-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+}
+
+.status-card h3 {
+    margin: 0;
+    color: #666;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.status-number {
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin: 0.5rem 0;
+    color: #333;
+}
+
+.status-card.responded {
+    border-left: 4px solid #28a745;
+}
+
+.status-card.pending {
+    border-left: 4px solid #ffc107;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.filter-tab {
+    padding: 0.75rem 1.5rem;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.filter-tab:hover {
+    background: #f8f9fa;
+    border-color: #ccc;
+}
+
+.filter-tab.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.response-status {
+    margin-left: 1rem;
+    font-size: 0.8rem;
+    font-weight: normal;
+}
+
+.status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+.status.responded {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+.status.pending {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
 @media (max-width: 768px) {
     .family-actions {
         flex-direction: column;
@@ -329,5 +423,23 @@ tr:hover {
     .copy-link-button,
     .delete-family-button {
         width: 100%;
+    }
+
+    .status-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-tabs {
+        flex-direction: column;
+    }
+
+    .filter-tab {
+        width: 100%;
+        text-align: center;
+    }
+
+    .response-status {
+        display: block;
+        margin: 0.5rem 0;
     }
 } 

@@ -11,6 +11,7 @@ function AdminView() {
     const [clearPassword, setClearPassword] = useState('');
     const [clearError, setClearError] = useState('');
     const [linkCopied, setLinkCopied] = useState('');
+    const [activeTab, setActiveTab] = useState('all'); // 'all', 'responded', 'pending'
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -128,6 +129,61 @@ function AdminView() {
         return acc;
     }, {});
 
+    // Group families by response status
+    const getFamilyGroups = () => {
+        const families = {};
+        const responded = new Set();
+        const pending = new Set();
+
+        // First pass: identify which families have any responses
+        guestList.forEach(guest => {
+            const familyKey = `${guest.family_name} (${guest.rsvp_code})`;
+            if (!families[familyKey]) {
+                families[familyKey] = {
+                    hasResponse: false,
+                    guests: [],
+                    familyId: guest.family_id,
+                    rsvpCode: guest.rsvp_code,
+                    totalGuests: 0,
+                    respondedGuests: 0
+                };
+            }
+            
+            families[familyKey].totalGuests++;
+            if (guest.attending_status !== 'Pending') {
+                families[familyKey].hasResponse = true;
+                families[familyKey].respondedGuests++;
+            }
+        });
+
+        // Second pass: categorize families
+        Object.entries(families).forEach(([familyKey, family]) => {
+            if (family.hasResponse) {
+                responded.add(familyKey);
+            } else {
+                pending.add(familyKey);
+            }
+        });
+
+        return { families, responded, pending };
+    };
+
+    const { families, responded, pending } = getFamilyGroups();
+
+    // Filter families based on active tab
+    const getFilteredFamilies = () => {
+        switch (activeTab) {
+            case 'responded':
+                return Object.entries(groupedGuests)
+                    .filter(([familyKey]) => responded.has(familyKey));
+            case 'pending':
+                return Object.entries(groupedGuests)
+                    .filter(([familyKey]) => pending.has(familyKey));
+            default:
+                return Object.entries(groupedGuests);
+        }
+    };
+
     const handleCopyLink = (rsvpCode) => {
         const baseUrl = window.location.origin;
         const rsvpLink = `${baseUrl}/?code=${rsvpCode}`;
@@ -200,92 +256,144 @@ function AdminView() {
                 </div>
             )}
 
+            {/* Add RSVP Status Overview */}
             <div className="admin-section">
-                <h2>Event Totals</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Event</th>
-                            <th>Date</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {eventTotals.map(event => (
-                            <tr key={event.event_id}>
-                                <td>{event.event_name}</td>
-                                <td>{formatDate(event.event_date)}</td>
-                                <td>{event.total_attendees}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <h2>RSVP Status Overview</h2>
+                <div className="status-cards">
+                    <div className="status-card">
+                        <h3>Total Families</h3>
+                        <p className="status-number">{Object.keys(families).length}</p>
+                    </div>
+                    <div className="status-card responded">
+                        <h3>Responded</h3>
+                        <p className="status-number">{responded.size}</p>
+                    </div>
+                    <div className="status-card pending">
+                        <h3>Pending</h3>
+                        <p className="status-number">{pending.size}</p>
+                    </div>
+                </div>
             </div>
 
+            {/* Add filter tabs */}
             <div className="admin-section">
-                <h2>Guest List by Family</h2>
-                <div className="family-list">
-                    {Object.entries(groupedGuests).map(([familyKey, familyData]) => (
-                        <div key={familyKey} className="family-section">
-                            <div className="family-header">
-                                <div className="family-title" onClick={() => toggleFamily(familyKey)}>
-                                    <h3>{familyKey}</h3>
-                                    <span className="expand-icon">
-                                        {expandedFamilies.has(familyKey) ? '▼' : '▶'}
-                                    </span>
+                <div className="filter-tabs">
+                    <button 
+                        className={`filter-tab ${activeTab === 'all' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('all')}
+                    >
+                        All Families ({Object.keys(families).length})
+                    </button>
+                    <button 
+                        className={`filter-tab ${activeTab === 'responded' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('responded')}
+                    >
+                        Responded ({responded.size})
+                    </button>
+                    <button 
+                        className={`filter-tab ${activeTab === 'pending' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('pending')}
+                    >
+                        Pending ({pending.size})
+                    </button>
+                </div>
+
+                <div className="admin-section">
+                    <h2>Event Totals</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Date</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {eventTotals.map(event => (
+                                <tr key={event.event_id}>
+                                    <td>{event.event_name}</td>
+                                    <td>{formatDate(event.event_date)}</td>
+                                    <td>{event.total_attendees}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="admin-section">
+                    <h2>Guest List by Family</h2>
+                    <div className="family-list">
+                        {getFilteredFamilies().map(([familyKey, familyData]) => (
+                            <div key={familyKey} className="family-section">
+                                <div className="family-header">
+                                    <div className="family-title" onClick={() => toggleFamily(familyKey)}>
+                                        <h3>{familyKey}</h3>
+                                        <span className="response-status">
+                                            {responded.has(familyKey) ? (
+                                                <span className="status responded">
+                                                    {families[familyKey].respondedGuests}/{families[familyKey].totalGuests} Responded
+                                                </span>
+                                            ) : (
+                                                <span className="status pending">Pending</span>
+                                            )}
+                                        </span>
+                                        <span className="expand-icon">
+                                            {expandedFamilies.has(familyKey) ? '▼' : '▶'}
+                                        </span>
+                                    </div>
+                                    <div className="family-actions">
+                                        <button 
+                                            onClick={() => handleCopyLink(familyData.rsvpCode)}
+                                            className="copy-link-button"
+                                        >
+                                            {linkCopied === familyData.rsvpCode ? 'Copied!' : 'Copy RSVP Link'}
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteFamily(familyData.familyId)}
+                                            className="delete-family-button"
+                                        >
+                                            Delete Family
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="family-actions">
-                                    <button 
-                                        onClick={() => handleCopyLink(familyData.rsvpCode)}
-                                        className="copy-link-button"
-                                    >
-                                        {linkCopied === familyData.rsvpCode ? 'Copied!' : 'Copy RSVP Link'}
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDeleteFamily(familyData.familyId)}
-                                        className="delete-family-button"
-                                    >
-                                        Delete Family
-                                    </button>
-                                </div>
-                            </div>
-                            {expandedFamilies.has(familyKey) && (
-                                <table className="family-details">
-                                    <thead>
-                                        <tr>
-                                            <th>Guest</th>
-                                            <th>Event</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {familyData.guests.map((guest, index) => (
-                                            <tr key={`${guest.guest_id}-${index}`}>
-                                                <td>{guest.guest_name}</td>
-                                                <td>{guest.event_name} ({formatDate(guest.event_date)})</td>
-                                                <td>{guest.attending_status}</td>
-                                                <td className="action-buttons">
-                                                    <button 
-                                                        onClick={() => handleDeleteResponse(guest.guest_id)}
-                                                        className="delete-button"
-                                                    >
-                                                        Delete Response
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleDeleteGuest(guest.guest_id)}
-                                                        className="remove-button"
-                                                    >
-                                                        Remove Guest
-                                                    </button>
-                                                </td>
+                                {expandedFamilies.has(familyKey) && (
+                                    <table className="family-details">
+                                        <thead>
+                                            <tr>
+                                                <th>Guest</th>
+                                                <th>Event</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    ))}
+                                        </thead>
+                                        <tbody>
+                                            {familyData.guests.map((guest, index) => (
+                                                <tr key={`${guest.guest_id}-${index}`}>
+                                                    <td>{guest.guest_name}</td>
+                                                    <td>{guest.event_name} ({formatDate(guest.event_date)})</td>
+                                                    <td>{guest.attending_status}</td>
+                                                    <td className="action-buttons">
+                                                        <button 
+                                                            onClick={() => handleDeleteResponse(guest.guest_id)}
+                                                            className="delete-button"
+                                                        >
+                                                            Delete Response
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleDeleteGuest(guest.guest_id)}
+                                                            className="remove-button"
+                                                        >
+                                                            Remove Guest
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
