@@ -171,7 +171,7 @@ function getFormattedRsvpResponses() {
     });
 }
 
-// Update the importGuestsFromCSV function to remove notes
+// Update the importGuestsFromCSV function to preserve existing data and only add new entries
 async function importGuestsFromCSV(filePath) {
     try {
         const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -199,11 +199,21 @@ async function importGuestsFromCSV(filePath) {
         
         await pool.query('BEGIN');
         
-        // Clear existing data
-        await pool.query('DELETE FROM rsvp_responses');
-        await pool.query('DELETE FROM guest_events');
-        await pool.query('DELETE FROM guests');
-        await pool.query('DELETE FROM families');
+        // Get existing families and their RSVP codes
+        const existingFamiliesResult = await pool.query(
+            'SELECT id, family_name, rsvp_code FROM families'
+        );
+        const existingFamilies = new Map(
+            existingFamiliesResult.rows.map(f => [f.rsvp_code, f])
+        );
+
+        // Get existing guests
+        const existingGuestsResult = await pool.query(
+            'SELECT id, name, family_id FROM guests'
+        );
+        const existingGuests = new Map(
+            existingGuestsResult.rows.map(g => [`${g.name}-${g.family_id}`, g])
+        );
         
         // Get existing events mapping
         const eventsResult = await pool.query('SELECT id, name FROM events');
@@ -213,9 +223,7 @@ async function importGuestsFromCSV(filePath) {
             eventMap[normalizedName] = event.id;
         });
 
-        // Track processed families
-        const processedFamilies = new Map();
-
+        // Process each record
         for (const record of records) {
             // Clean up field values
             const cleanRecord = {
@@ -233,9 +241,13 @@ async function importGuestsFromCSV(filePath) {
 
             let familyId;
             
-            if (processedFamilies.has(cleanRecord.rsvp_code)) {
-                familyId = processedFamilies.get(cleanRecord.rsvp_code);
+            // Check if family already exists
+            const existingFamily = existingFamilies.get(cleanRecord.rsvp_code);
+            if (existingFamily) {
+                familyId = existingFamily.id;
+                console.log(`Family with RSVP code ${cleanRecord.rsvp_code} already exists, using existing family`);
             } else {
+                // Create new family
                 const familyResult = await pool.query(
                     `INSERT INTO families (family_name, rsvp_code)
                      VALUES ($1, $2)
@@ -243,45 +255,67 @@ async function importGuestsFromCSV(filePath) {
                     [cleanRecord.family_name, cleanRecord.rsvp_code]
                 );
                 familyId = familyResult.rows[0].id;
-                processedFamilies.set(cleanRecord.rsvp_code, familyId);
+                existingFamilies.set(cleanRecord.rsvp_code, { 
+                    id: familyId, 
+                    family_name: cleanRecord.family_name, 
+                    rsvp_code: cleanRecord.rsvp_code 
+                });
+                console.log(`Created new family with RSVP code ${cleanRecord.rsvp_code}`);
             }
             
-            // Create guest
-            const guestResult = await pool.query(
-                `INSERT INTO guests (name, family_id)
-                 VALUES ($1, $2)
-                 RETURNING id`,
-                [cleanRecord.member_name, familyId]
-            );
+            // Check if guest already exists in this family
+            const guestKey = `${cleanRecord.member_name}-${familyId}`;
+            const existingGuest = existingGuests.get(guestKey);
             
-            const guestId = guestResult.rows[0].id;
+            let guestId;
+            if (existingGuest) {
+                guestId = existingGuest.id;
+                console.log(`Guest ${cleanRecord.member_name} already exists in family, skipping guest creation`);
+            } else {
+                // Create new guest
+                const guestResult = await pool.query(
+                    `INSERT INTO guests (name, family_id)
+                     VALUES ($1, $2)
+                     RETURNING id`,
+                    [cleanRecord.member_name, familyId]
+                );
+                guestId = guestResult.rows[0].id;
+                existingGuests.set(guestKey, { 
+                    id: guestId, 
+                    name: cleanRecord.member_name, 
+                    family_id: familyId 
+                });
+                console.log(`Created new guest ${cleanRecord.member_name}`);
+            }
             
-            // Process events - ensure no duplicates
+            // Process events for this guest
             if (cleanRecord.invited_events) {
-                // Split events and remove duplicates using Set
                 const invitedEvents = [...new Set(
                     cleanRecord.invited_events
                         .split(',')
                         .map(e => e.trim())
-                        .filter(e => e) // Remove empty strings
+                        .filter(e => e)
                 )];
                 
-                // Keep track of added events for this guest to prevent duplicates
-                const addedEvents = new Set();
+                // Get existing event assignments for this guest
+                const existingEventsResult = await pool.query(
+                    'SELECT event_id FROM guest_events WHERE guest_id = $1',
+                    [guestId]
+                );
+                const existingEventIds = new Set(existingEventsResult.rows.map(e => e.event_id));
                 
                 for (const eventName of invitedEvents) {
                     const normalizedEventName = eventName.toLowerCase().trim();
                     const eventId = eventMap[normalizedEventName];
                     
-                    // Only add if we have a valid event ID and haven't added it yet
-                    if (eventId && !addedEvents.has(eventId)) {
+                    if (eventId && !existingEventIds.has(eventId)) {
                         await pool.query(
                             `INSERT INTO guest_events (guest_id, event_id)
                              VALUES ($1, $2)
                              ON CONFLICT (guest_id, event_id) DO NOTHING`,
                             [guestId, eventId]
                         );
-                        addedEvents.add(eventId);
+                        console.log(`Added event ${eventName} for guest ${cleanRecord.member_name}`);
                     }
                 }
             }
