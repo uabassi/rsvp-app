@@ -12,6 +12,8 @@ function AdminView() {
     const [clearError, setClearError] = useState('');
     const [linkCopied, setLinkCopied] = useState('');
     const [activeTab, setActiveTab] = useState('all'); // 'all', 'responded', 'pending'
+    const [uploadStatus, setUploadStatus] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -194,6 +196,41 @@ function AdminView() {
         });
     };
 
+    const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Check if it's a CSV file
+        if (!file.name.endsWith('.csv')) {
+            setUploadStatus('Please upload a CSV file');
+            return;
+        }
+
+        setIsUploading(true);
+        setUploadStatus('Uploading...');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await axios.post(`${config.apiUrl}/api/upload-guests`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            setUploadStatus('Upload successful! New guests have been added.');
+            fetchData(); // Refresh the data
+        } catch (error) {
+            console.error('Upload error:', error);
+            setUploadStatus(error.response?.data?.error || 'Error uploading file');
+        } finally {
+            setIsUploading(false);
+            // Clear the file input
+            event.target.value = '';
+        }
+    };
+
     useEffect(() => {
         // Initial fetch
         fetchData();
@@ -214,6 +251,24 @@ function AdminView() {
                     <button onClick={fetchData} className="refresh-button">
                         Refresh Data
                     </button>
+                    <div className="upload-section">
+                        <input
+                            type="file"
+                            accept=".csv"
+                            onChange={handleFileUpload}
+                            id="csv-upload"
+                            className="file-input"
+                            disabled={isUploading}
+                        />
+                        <label htmlFor="csv-upload" className="upload-button">
+                            {isUploading ? 'Uploading...' : 'Upload Guest List'}
+                        </label>
+                        {uploadStatus && (
+                            <div className={`upload-status ${uploadStatus.includes('successful') ? 'success' : 'error'}`}>
+                                {uploadStatus}
+                            </div>
+                        )}
+                    </div>
                     <button 
                         onClick={() => setShowClearDialog(true)} 
                         className="clear-button"
