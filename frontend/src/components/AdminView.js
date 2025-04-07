@@ -14,6 +14,7 @@ function AdminView() {
     const [activeTab, setActiveTab] = useState('all'); // 'all', 'responded', 'pending'
     const [uploadStatus, setUploadStatus] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+    const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -174,10 +175,27 @@ function AdminView() {
 
     // Filter families based on active tab
     const getFilteredFamilies = () => {
+        let filteredEntries;
         switch (activeTab) {
             case 'responded':
-                return Object.entries(groupedGuests)
+                filteredEntries = Object.entries(groupedGuests)
                     .filter(([familyKey]) => responded.has(familyKey));
+                
+                // Sort by most recent RSVP timestamp if on responded tab
+                if (sortOrder) {
+                    filteredEntries.sort(([, familyA], [, familyB]) => {
+                        // Find the most recent RSVP timestamp for each family
+                        const latestA = Math.max(...familyA.guests
+                            .filter(g => g.attending_status !== 'Pending')
+                            .map(g => g.rsvp_timestamp ? new Date(g.rsvp_timestamp).getTime() : 0));
+                        const latestB = Math.max(...familyB.guests
+                            .filter(g => g.attending_status !== 'Pending')
+                            .map(g => g.rsvp_timestamp ? new Date(g.rsvp_timestamp).getTime() : 0));
+                        
+                        return sortOrder === 'newest' ? latestB - latestA : latestA - latestB;
+                    });
+                }
+                return filteredEntries;
             case 'pending':
                 return Object.entries(groupedGuests)
                     .filter(([familyKey]) => pending.has(familyKey));
@@ -352,6 +370,20 @@ function AdminView() {
                         Pending ({pending.size})
                     </button>
                 </div>
+
+                {activeTab === 'responded' && (
+                    <div className="sort-controls">
+                        <label>Sort by: </label>
+                        <select 
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value)}
+                            className="sort-select"
+                        >
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                        </select>
+                    </div>
+                )}
 
                 <div className="admin-section">
                     <h2>Event Totals</h2>

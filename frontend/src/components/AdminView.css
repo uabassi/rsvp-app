@@ -482,6 +482,53 @@ tr:hover {
     gap: 0.5rem;
 }
 
+.filter-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.sort-controls {
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sort-controls label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.sort-select {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.sort-select:hover {
+    border-color: #999;
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: #666;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+}
+
+.response-time {
+    font-size: 0.75rem;
+    color: #666;
+    font-style: italic;
+    margin-left: 0.5rem;
+}
+
 @media (max-width: 768px) {
     .family-actions {
         flex-direction: column;
@@ -529,5 +576,20 @@ tr:hover {
     .upload-status {
         position: static;
         margin-top: 0.5rem;
+    }
+
+    .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sort-controls {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 1rem;
+    }
+
+    .sort-select {
+        flex: 1;
     }
 } 
